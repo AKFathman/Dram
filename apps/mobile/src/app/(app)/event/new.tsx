@@ -50,7 +50,8 @@ export default function NewEvent() {
     if (!name.trim()) return Alert.alert('Name your event', 'Give it something people will recognise on the invite.');
     if (!start) return Alert.alert('Check the start time', 'Use the format YYYY-MM-DD HH:mm, e.g. 2026-10-04 19:00.');
     if (endInvalid) return Alert.alert('Check the end time', 'Use the format YYYY-MM-DD HH:mm, or leave it blank.');
-    if (end && end.getTime() <= start.getTime()) return Alert.alert('Check the end time', 'It has to be after the start.');
+    if (end && end.getTime() <= start.getTime())
+      return Alert.alert('Check the end time', 'It has to be after the start.');
     try {
       const event = await create.mutateAsync({
         name: name.trim(),
@@ -139,7 +140,12 @@ export default function NewEvent() {
         <Field label="WHO CAN JOIN">
           <Row gap={spacing.sm}>
             {VISIBILITY.map((v) => (
-              <Chip key={v.value} label={v.label} selected={visibility === v.value} onPress={() => setVisibility(v.value)} />
+              <Chip
+                key={v.value}
+                label={v.label}
+                selected={visibility === v.value}
+                onPress={() => setVisibility(v.value)}
+              />
             ))}
           </Row>
           <Text variant="small" muted>

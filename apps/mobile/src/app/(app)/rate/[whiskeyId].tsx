@@ -1,6 +1,9 @@
 /**
  * The rating flow: tier → head-to-head comparisons → save → where it landed.
- * This file owns the state machine; the two picker UIs live in components/rate-*.
+ *
+ * The comparison session is *derived*, not stored: a tier plus the answers so
+ * far replays deterministically through lib/ranking, so "undo" and error
+ * recovery are just popping an answer off the list.
  */
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -21,7 +24,7 @@ import {
   useWhiskey,
 } from '@/hooks';
 import { categoryLabel, whiskeySubtitle, type RankingView, type RankingWithWhiskey } from '@/lib/api';
-import { answer, formatScore, maxQuestions, nextCandidate, startSession, type Answer, type Session, type Tier } from '@/lib/ranking';
+import { answer, formatScore, maxQuestions, nextCandidate, startSession, type Answer, type Tier } from '@/lib/ranking';
 import { spacing, useTheme } from '@/theme';
 
 type Candidate = RankingWithWhiskey & { score: number; overallRank: number };
@@ -29,7 +32,11 @@ type Candidate = RankingWithWhiskey & { score: number; overallRank: number };
 export default function RateScreen() {
   const t = useTheme();
   const router = useRouter();
-  const { whiskeyId, eventId, preferIds } = useLocalSearchParams<{ whiskeyId: string; eventId?: string; preferIds?: string }>();
+  const { whiskeyId, eventId, preferIds } = useLocalSearchParams<{
+    whiskeyId: string;
+    eventId?: string;
+    preferIds?: string;
+  }>();
 
   const whiskeyQ = useWhiskey(whiskeyId);
   const rankings = useMyRankings();
@@ -40,43 +47,42 @@ export default function RateScreen() {
   const removeRanking = useRemoveRanking();
 
   const preferIdsArray = useMemo(
-    () => (preferIds ? preferIds.split(',').map((s) => s.trim()).filter(Boolean) : null),
+    () =>
+      preferIds
+        ? preferIds
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : null,
     [preferIds],
   );
 
   const [tier, setTier] = useState<Tier | null>(null);
-  const [session, setSession] = useState<Session<string> | null>(null);
-  const [pool, setPool] = useState<Candidate[]>([]);
-  const [history, setHistory] = useState<Session<string>[]>([]);
-  const [saving, setSaving] = useState(false);
+  const [answers, setAnswers] = useState<Answer[]>([]);
   const [result, setResult] = useState<RankingView | null>(null);
   const savingRef = useRef(false);
 
   const candidates = useTierCandidates(tier, whiskeyId, preferIdsArray);
   const shownTier = tier ?? existing?.tier ?? null;
 
-  // A tier was tapped — freeze the candidate pool and open a session over it.
-  useEffect(() => {
-    if (!tier || session || result) return;
-    setPool(candidates);
-    setSession(startSession(candidates.map((c) => c.whiskey_id)));
-  }, [tier, session, result, candidates]);
+  // Replay the answers over this tier's candidates to get the current question.
+  const session = useMemo(() => {
+    if (!tier) return null;
+    let s = startSession(candidates.map((c) => c.whiskey_id));
+    for (const a of answers) s = answer(s, whiskeyId, a);
+    return s;
+  }, [tier, candidates, answers, whiskeyId]);
 
   // The binary search finished — write it to the server.
   useEffect(() => {
     if (!session?.done || !tier || result || savingRef.current) return;
     savingRef.current = true;
-    setSaving(true);
-    const prev = history[history.length - 1] ?? null;
+    const position = session.position;
+    const comparisons = session.comparisons.map((c) => ({ winner: c.winner, loser: c.loser }));
+    const hadNoAnswers = answers.length === 0;
     void (async () => {
       try {
-        const row = await upsert.mutateAsync({
-          whiskeyId,
-          tier,
-          position: session.position,
-          eventId,
-          comparisons: session.comparisons.map((c) => ({ winner: c.winner, loser: c.loser })),
-        });
+        const row = await upsert.mutateAsync({ whiskeyId, tier, position, eventId, comparisons });
         if (eventId) {
           const rows = eventTastings.data ?? (await eventTastings.refetch()).data ?? [];
           if (!rows.some((r) => r.whiskey_id === whiskeyId)) {
@@ -87,12 +93,11 @@ export default function RateScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch (e) {
         Alert.alert('Could not save your rating', e instanceof Error ? e.message : String(e));
-        setSession(prev);
-        setHistory((h) => h.slice(0, -1));
-        if (!prev) setTier(null);
+        // Back to the last question (or the tier picker if there wasn't one).
+        setAnswers((prev) => prev.slice(0, -1));
+        if (hadNoAnswers) setTier(null);
       } finally {
         savingRef.current = false;
-        setSaving(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -108,21 +113,16 @@ export default function RateScreen() {
     );
   }
 
-  const onAnswer = (a: Answer) => {
-    if (!session) return;
-    setHistory((h) => [...h, session]);
-    setSession(answer(session, whiskeyId, a));
-  };
+  const onAnswer = (a: Answer) => setAnswers((prev) => [...prev, a]);
 
   const backToTier = () => {
-    setSession(null);
-    setPool([]);
-    setHistory([]);
+    setAnswers([]);
     setTier(null);
   };
 
   const pickTier = (next: Tier) => {
     Haptics.selectionAsync().catch(() => {});
+    setAnswers([]);
     setTier(next);
   };
 
@@ -134,7 +134,7 @@ export default function RateScreen() {
         style: 'destructive',
         onPress: () =>
           removeRanking.mutate(whiskeyId, {
-            onSuccess: () => router.back(),
+            onSuccess: () => (router.canGoBack() ? router.back() : router.replace('/')),
             onError: (e) => Alert.alert('Could not remove it', e instanceof Error ? e.message : String(e)),
           }),
       },
@@ -148,21 +148,17 @@ export default function RateScreen() {
   };
 
   const currentId = session && !session.done ? nextCandidate(session) : null;
-  const currentCandidate = currentId
-    ? pool.find((c) => c.whiskey_id === currentId) ?? candidates.find((c) => c.whiskey_id === currentId) ?? null
-    : null;
+  const currentCandidate = currentId ? (candidates.find((c) => c.whiskey_id === currentId) ?? null) : null;
   const categoryRank = rankWithin((r) => r.whiskey.category === whiskey.category);
   const regionRank = whiskey.region ? rankWithin((r) => r.whiskey.region === whiskey.region) : null;
 
-  const step: 'result' | 'saving' | 'compare' | 'lost' | 'tier' = result
+  const step: 'result' | 'saving' | 'compare' | 'tier' = result
     ? 'result'
-    : saving || session?.done
+    : session?.done
       ? 'saving'
       : session && currentCandidate
         ? 'compare'
-        : session
-          ? 'lost'
-          : 'tier';
+        : 'tier';
 
   return (
     <Screen scroll edges={['bottom']}>
@@ -186,7 +182,7 @@ export default function RateScreen() {
         <View style={{ gap: spacing.lg, alignItems: 'center' }}>
           <ScoreBadge score={result.score} size="lg" />
           <View style={{ gap: spacing.xs, alignItems: 'center' }}>
-            <Text variant="h2">Nice — it&apos;s on your list</Text>
+            <Text variant="h2">{"Nice — it's on your list"}</Text>
             <Text muted>
               #{result.overall_rank} of {result.total} overall
             </Text>
@@ -236,8 +232,6 @@ export default function RateScreen() {
           onAnswer={onAnswer}
           onBack={backToTier}
         />
-      ) : step === 'lost' ? (
-        <ErrorState error={new Error('That comparison is no longer available.')} retry={backToTier} />
       ) : (
         <View style={{ gap: spacing.lg }}>
           <View style={{ gap: spacing.xs }}>
@@ -248,7 +242,7 @@ export default function RateScreen() {
               </Text>
             ) : (
               <Text variant="small" muted>
-                Pick a gut reaction — we&apos;ll work out the number.
+                {"Pick a gut reaction — we'll work out the number."}
               </Text>
             )}
           </View>

@@ -16,12 +16,13 @@ export type Tier = 'loved' | 'liked' | 'fine' | 'disliked';
 /** Best → worst. */
 export const TIER_ORDER: readonly Tier[] = ['loved', 'liked', 'fine', 'disliked'] as const;
 
-export const TIER_META: Record<Tier, { label: string; short: string; emoji: string; band: readonly [number, number] }> = {
-  loved: { label: 'Loved it', short: 'Loved', emoji: '😍', band: [8, 10] },
-  liked: { label: 'Liked it', short: 'Liked', emoji: '🙂', band: [6, 8] },
-  fine: { label: 'It was fine', short: 'Fine', emoji: '😐', band: [4, 6] },
-  disliked: { label: 'Not for me', short: 'Not for me', emoji: '👎', band: [1, 4] },
-};
+export const TIER_META: Record<Tier, { label: string; short: string; emoji: string; band: readonly [number, number] }> =
+  {
+    loved: { label: 'Loved it', short: 'Loved', emoji: '😍', band: [8, 10] },
+    liked: { label: 'Liked it', short: 'Liked', emoji: '🙂', band: [6, 8] },
+    fine: { label: 'It was fine', short: 'Fine', emoji: '😐', band: [4, 6] },
+    disliked: { label: 'Not for me', short: 'Not for me', emoji: '👎', band: [1, 4] },
+  };
 
 /** Derived 0–10 score for the item at `position` (0 = best) in a tier of `n`. */
 export function tierScore(tier: Tier, position: number, n: number): number {
@@ -116,9 +117,7 @@ export interface RankedItem {
  * Given every item in a user's list, return a map of derived scores and
  * overall ranks — identical to what v_rankings returns from the server.
  */
-export function deriveList<T extends RankedItem>(
-  items: readonly T[],
-): (T & { score: number; overallRank: number })[] {
+export function deriveList<T extends RankedItem>(items: readonly T[]): (T & { score: number; overallRank: number })[] {
   const byTier = new Map<Tier, T[]>();
   for (const t of TIER_ORDER) byTier.set(t, []);
   for (const it of items) byTier.get(it.tier)!.push(it);

@@ -35,12 +35,7 @@ export function Text({
   ...rest
 }: React.ComponentProps<typeof RNText> & { variant?: Variant; muted?: boolean; color?: string }) {
   const t = useTheme();
-  return (
-    <RNText
-      {...rest}
-      style={[font[variant], { color: color ?? (muted ? t.muted : t.text) }, style]}
-    />
-  );
+  return <RNText {...rest} style={[font[variant], { color: color ?? (muted ? t.muted : t.text) }, style]} />;
 }
 
 // -------------------------------------------------------------- layout ------
@@ -82,7 +77,13 @@ export function Card({ style, ...rest }: ViewProps) {
     <View
       {...rest}
       style={[
-        { backgroundColor: t.card, borderColor: t.border, borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.lg, padding: spacing.lg },
+        {
+          backgroundColor: t.card,
+          borderColor: t.border,
+          borderWidth: StyleSheet.hairlineWidth,
+          borderRadius: radius.lg,
+          padding: spacing.lg,
+        },
         style,
       ]}
     />
@@ -120,7 +121,13 @@ export function Button({
 }) {
   const t = useTheme();
   const bg =
-    variant === 'primary' ? t.accent : variant === 'danger' ? t.danger : variant === 'secondary' ? t.accentSoft : 'transparent';
+    variant === 'primary'
+      ? t.accent
+      : variant === 'danger'
+        ? t.danger
+        : variant === 'secondary'
+          ? t.accentSoft
+          : 'transparent';
   const fg = variant === 'primary' || variant === 'danger' ? t.accentText : variant === 'secondary' ? t.text : t.accent;
   return (
     <Pressable
@@ -159,7 +166,12 @@ export function IconButton({
   color,
   style,
   ...rest
-}: PressableProps & { name: React.ComponentProps<typeof Ionicons>['name']; size?: number; color?: string; style?: StyleProp<ViewStyle> }) {
+}: PressableProps & {
+  name: React.ComponentProps<typeof Ionicons>['name'];
+  size?: number;
+  color?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
   const t = useTheme();
   return (
     <Pressable
@@ -198,7 +210,14 @@ export function Input({ style, ...rest }: TextInputProps) {
 export function SearchBar(props: TextInputProps) {
   const t = useTheme();
   return (
-    <Row style={{ backgroundColor: t.card, borderRadius: radius.md, paddingHorizontal: spacing.md, borderColor: t.border, borderWidth: StyleSheet.hairlineWidth }}>
+    <Row
+      style={{
+        backgroundColor: t.card,
+        borderRadius: radius.md,
+        paddingHorizontal: spacing.md,
+        borderColor: t.border,
+        borderWidth: StyleSheet.hairlineWidth,
+      }}>
       <Ionicons name="search" size={18} color={t.muted} />
       <TextInput
         placeholderTextColor={t.muted}
@@ -250,14 +269,34 @@ export function Chip({
 }
 
 // ------------------------------------------------------------- whiskey ------
-export function ScoreBadge({ score, size = 'md', style }: { score: number | null | undefined; size?: 'sm' | 'md' | 'lg'; style?: StyleProp<ViewStyle> }) {
+export function ScoreBadge({
+  score,
+  size = 'md',
+  style,
+}: {
+  score: number | null | undefined;
+  size?: 'sm' | 'md' | 'lg';
+  style?: StyleProp<ViewStyle>;
+}) {
   const t = useTheme();
   const dim = size === 'lg' ? 56 : size === 'md' ? 44 : 34;
   const fs = size === 'lg' ? 20 : size === 'md' ? 16 : 13;
   const s = score ?? null;
-  const bg = s === null ? t.border : s >= 8 ? t.tier.loved : s >= 6 ? t.tier.liked : s >= 4 ? t.tier.fine : t.tier.disliked;
+  const bg =
+    s === null ? t.border : s >= 8 ? t.tier.loved : s >= 6 ? t.tier.liked : s >= 4 ? t.tier.fine : t.tier.disliked;
   return (
-    <View style={[{ width: dim, height: dim, borderRadius: dim / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }, style]}>
+    <View
+      style={[
+        {
+          width: dim,
+          height: dim,
+          borderRadius: dim / 2,
+          backgroundColor: bg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        style,
+      ]}>
       <RNText style={{ color: '#fff', fontWeight: '700', fontSize: fs }}>{formatScore(s)}</RNText>
     </View>
   );
@@ -266,7 +305,11 @@ export function ScoreBadge({ score, size = 'md', style }: { score: number | null
 export function TierPill({ tier, style }: { tier: Tier; style?: StyleProp<ViewStyle> }) {
   const t = useTheme();
   return (
-    <View style={[{ backgroundColor: t.tier[tier], paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill }, style]}>
+    <View
+      style={[
+        { backgroundColor: t.tier[tier], paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill },
+        style,
+      ]}>
       <RNText style={[font.caption, { color: '#fff' }]}>
         {TIER_META[tier].emoji} {TIER_META[tier].short}
       </RNText>
@@ -274,10 +317,30 @@ export function TierPill({ tier, style }: { tier: Tier; style?: StyleProp<ViewSt
   );
 }
 
-export function BottleImage({ uri, size = 56, style }: { uri?: string | null; size?: number; style?: StyleProp<ViewStyle> }) {
+export function BottleImage({
+  uri,
+  size = 56,
+  style,
+}: {
+  uri?: string | null;
+  size?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
   const t = useTheme();
   return (
-    <View style={[{ width: size, height: size, borderRadius: radius.md, backgroundColor: t.accentSoft, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, style]}>
+    <View
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: radius.md,
+          backgroundColor: t.accentSoft,
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        style,
+      ]}>
       {uri ? (
         <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" transition={150} />
       ) : (
@@ -287,11 +350,33 @@ export function BottleImage({ uri, size = 56, style }: { uri?: string | null; si
   );
 }
 
-export function Avatar({ uri, name, size = 40, style }: { uri?: string | null; name?: string | null; size?: number; style?: StyleProp<ViewStyle> }) {
+export function Avatar({
+  uri,
+  name,
+  size = 40,
+  style,
+}: {
+  uri?: string | null;
+  name?: string | null;
+  size?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
   const t = useTheme();
   const initials = (name ?? '?').trim().slice(0, 1).toUpperCase();
   return (
-    <View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: t.accentSoft, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, style]}>
+    <View
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: t.accentSoft,
+          overflow: 'hidden',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        style,
+      ]}>
       {uri ? (
         <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" />
       ) : (
@@ -326,7 +411,9 @@ export function EmptyState({
   return (
     <View style={{ alignItems: 'center', padding: spacing.xxl, gap: spacing.sm }}>
       <Ionicons name={icon} size={40} color={t.muted} />
-      <Text variant="h3" style={{ textAlign: 'center' }}>{title}</Text>
+      <Text variant="h3" style={{ textAlign: 'center' }}>
+        {title}
+      </Text>
       {body ? (
         <Text muted style={{ textAlign: 'center' }}>
           {body}

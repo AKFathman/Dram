@@ -31,8 +31,7 @@ export function scoresheetTotal(s: Scoresheet) {
 
 export function TastingScoresheet({ value, onChange }: { value: Scoresheet; onChange: (next: Scoresheet) => void }) {
   const t = useTheme();
-  const set = (key: keyof Scoresheet, n: number) =>
-    onChange({ ...value, [key]: Math.max(0, Math.min(20, n)) });
+  const set = (key: keyof Scoresheet, n: number) => onChange({ ...value, [key]: Math.max(0, Math.min(20, n)) });
 
   return (
     <View style={{ gap: spacing.sm }}>

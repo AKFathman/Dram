@@ -81,7 +81,11 @@ export default function NotificationsScreen() {
         refreshing={query.isRefetching}
         onRefresh={() => query.refetch()}
         ListEmptyComponent={
-          <EmptyState icon="notifications-outline" title="Nothing yet" body="Follows, likes and event updates land here." />
+          <EmptyState
+            icon="notifications-outline"
+            title="Nothing yet"
+            body="Follows, likes and event updates land here."
+          />
         }
         renderItem={({ item }) => {
           const actorName = item.actor?.display_name || item.actor?.username || 'Someone';
@@ -102,7 +106,11 @@ export default function NotificationsScreen() {
               <Avatar uri={item.actor?.avatar_url} name={actorName} size={40} />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text variant="small">
-                  {item.actor ? <Text variant="small" style={styles.strong}>{actorName} </Text> : null}
+                  {item.actor ? (
+                    <Text variant="small" style={styles.strong}>
+                      {actorName}{' '}
+                    </Text>
+                  ) : null}
                   {describe(item)}
                 </Text>
                 <Text variant="caption" muted>
@@ -113,7 +121,12 @@ export default function NotificationsScreen() {
                     title="Accept"
                     variant="secondary"
                     loading={accept.isPending && accept.variables === item.actor_id}
-                    style={{ alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: spacing.lg, borderRadius: radius.pill }}
+                    style={{
+                      alignSelf: 'flex-start',
+                      paddingVertical: 8,
+                      paddingHorizontal: spacing.lg,
+                      borderRadius: radius.pill,
+                    }}
                     onPress={() => accept.mutate(item.actor_id!)}
                   />
                 ) : null}

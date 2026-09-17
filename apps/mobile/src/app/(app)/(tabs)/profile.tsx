@@ -6,7 +6,19 @@ import React from 'react';
 import { ActivityIndicator, Alert, Pressable, View } from 'react-native';
 
 import { ProfileStats } from '@/components/profile-stats';
-import { Avatar, Button, Card, Divider, EmptyState, IconButton, Loading, Row, Screen, Spacer, Text } from '@/components/ui';
+import {
+  Avatar,
+  Button,
+  Card,
+  Divider,
+  EmptyState,
+  IconButton,
+  Loading,
+  Row,
+  Screen,
+  Spacer,
+  Text,
+} from '@/components/ui';
 import { WhiskeyRow } from '@/components/whiskey-row';
 import { categoryLabel, uploadImage, type WhiskeyCategory } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -124,7 +136,16 @@ export default function ProfileTab() {
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
           <Avatar uri={profile?.avatar_url} name={profile?.display_name ?? profile?.username} size={80} />
           {pickAvatar.isPending ? (
-            <View style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+            <View
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                right: 0,
+                bottom: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}>
               <ActivityIndicator color={t.accent} />
             </View>
           ) : null}
@@ -216,7 +237,9 @@ export default function ProfileTab() {
                       group={categoryLabel(b.category)}
                       name={b.name}
                       score={b.score}
-                      onPress={() => router.push({ pathname: '/my-list', params: { filter: `category:${b.category}` } })}
+                      onPress={() =>
+                        router.push({ pathname: '/my-list', params: { filter: `category:${b.category}` } })
+                      }
                     />
                   </View>
                 ))}

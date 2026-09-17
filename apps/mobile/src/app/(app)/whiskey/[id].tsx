@@ -165,7 +165,11 @@ export default function WhiskeyDetailScreen() {
                     display_name: f.display_name ?? f.username ?? '',
                     avatar_url: f.avatar_url,
                   }}
-                  subtitle={f.overall_rank != null && f.total != null ? `#${f.overall_rank} of ${f.total}` : `@${f.username ?? ''}`}
+                  subtitle={
+                    f.overall_rank != null && f.total != null
+                      ? `#${f.overall_rank} of ${f.total}`
+                      : `@${f.username ?? ''}`
+                  }
                   right={
                     <Row gap={spacing.sm}>
                       {f.tier ? <TierPill tier={f.tier} /> : null}

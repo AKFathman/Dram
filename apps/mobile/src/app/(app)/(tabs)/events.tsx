@@ -148,7 +148,9 @@ export default function EventsTab() {
               event={item.event}
               role={item.role}
               onPress={() =>
-                item.joinable ? joinPublic(item.event) : router.push({ pathname: '/event/[id]', params: { id: item.event.id } })
+                item.joinable
+                  ? joinPublic(item.event)
+                  : router.push({ pathname: '/event/[id]', params: { id: item.event.id } })
               }
               right={
                 item.joinable ? (

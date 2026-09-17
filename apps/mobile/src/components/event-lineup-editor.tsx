@@ -45,10 +45,30 @@ function PourEditorRow({
           <WhiskeyRow whiskey={pour.whiskey} compact subtitle={pour.label ?? undefined} right={null} />
         </View>
         <View>
-          <IconButton name="chevron-up" size={18} disabled={first} accessibilityLabel="Move up" onPress={() => onMove(-1)} style={{ opacity: first ? 0.3 : 1 }} />
-          <IconButton name="chevron-down" size={18} disabled={last} accessibilityLabel="Move down" onPress={() => onMove(1)} style={{ opacity: last ? 0.3 : 1 }} />
+          <IconButton
+            name="chevron-up"
+            size={18}
+            disabled={first}
+            accessibilityLabel="Move up"
+            onPress={() => onMove(-1)}
+            style={{ opacity: first ? 0.3 : 1 }}
+          />
+          <IconButton
+            name="chevron-down"
+            size={18}
+            disabled={last}
+            accessibilityLabel="Move down"
+            onPress={() => onMove(1)}
+            style={{ opacity: last ? 0.3 : 1 }}
+          />
         </View>
-        <IconButton name="trash-outline" size={18} color={t.danger} accessibilityLabel="Remove pour" onPress={onRemove} />
+        <IconButton
+          name="trash-outline"
+          size={18}
+          color={t.danger}
+          accessibilityLabel="Remove pour"
+          onPress={onRemove}
+        />
       </Row>
       <Row gap={spacing.sm}>
         <Input
@@ -176,7 +196,13 @@ export function EventLineupEditor({ eventId, pours }: { eventId: string; pours: 
         <Button title="Add pour" variant="secondary" icon="add" onPress={() => setAdding(true)} />
       )}
 
-      <EventBulkAdd eventId={eventId} startOrder={sorted.length + 1} inLineup={inLineup} add={add} matchLines={matchLines} />
+      <EventBulkAdd
+        eventId={eventId}
+        startOrder={sorted.length + 1}
+        inLineup={inLineup}
+        add={add}
+        matchLines={matchLines}
+      />
     </View>
   );
 }

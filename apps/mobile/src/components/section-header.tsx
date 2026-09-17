@@ -4,13 +4,7 @@ import { Row, Text } from '@/components/ui';
 import { spacing, useTheme } from '@/theme';
 
 /** Section title with an optional trailing text action ("See all"). */
-export function SectionHeader({
-  title,
-  action,
-}: {
-  title: string;
-  action?: { label: string; onPress: () => void };
-}) {
+export function SectionHeader({ title, action }: { title: string; action?: { label: string; onPress: () => void } }) {
   const t = useTheme();
   return (
     <Row style={{ justifyContent: 'space-between', marginBottom: spacing.sm, marginTop: spacing.lg }}>

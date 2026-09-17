@@ -50,16 +50,12 @@ export function RateComparison({
           OR
         </Text>
       </Row>
-      <ChoiceCard
-        whiskey={candidate}
-        score={candidateScore}
-        onPress={() => tap('existing')}
-      />
+      <ChoiceCard whiskey={candidate} score={candidateScore} onPress={() => tap('existing')} />
 
       <Button title="Too close to call" variant="ghost" onPress={() => tap('same')} />
       <Pressable onPress={onBack} accessibilityRole="button" hitSlop={8}>
         <Text variant="small" style={{ textAlign: 'center', color: t.muted }}>
-          Change my rating
+          Back to tiers
         </Text>
       </Pressable>
     </View>
@@ -114,7 +110,14 @@ function ProgressBar({ value, total }: { value: number; total: number }) {
   const t = useTheme();
   const pct = total <= 0 ? 1 : Math.min(1, value / total);
   return (
-    <View style={{ height: 4, borderRadius: radius.pill, backgroundColor: t.border, overflow: 'hidden', marginTop: spacing.xs }}>
+    <View
+      style={{
+        height: 4,
+        borderRadius: radius.pill,
+        backgroundColor: t.border,
+        overflow: 'hidden',
+        marginTop: spacing.xs,
+      }}>
       <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: t.accent }} />
     </View>
   );

@@ -28,7 +28,12 @@ export default function JoinEvent() {
   const params = useLocalSearchParams<{ code?: string }>();
   const join = useJoinEvent();
   const [permission, requestPermission] = useCameraPermissions();
-  const [code, setCode] = useState(() => (params.code ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH));
+  const [code, setCode] = useState(() =>
+    (params.code ?? '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, CODE_LENGTH),
+  );
   const [scanning, setScanning] = useState(false);
   /** Stops a QR code from firing `join` over and over while the camera keeps seeing it. */
   const busy = useRef(false);
@@ -78,7 +83,14 @@ export default function JoinEvent() {
       <Input
         placeholder="ABC123"
         value={code}
-        onChangeText={(v) => setCode(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, CODE_LENGTH))}
+        onChangeText={(v) =>
+          setCode(
+            v
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, '')
+              .slice(0, CODE_LENGTH),
+          )
+        }
         autoCapitalize="characters"
         autoCorrect={false}
         autoFocus

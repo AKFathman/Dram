@@ -25,11 +25,9 @@ export default function LogScreen() {
   const query = q.trim();
   const searching = query.length >= 2;
 
-  const recent = [...rankings.list]
-    .sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))
-    .slice(0, 10);
+  const recent = [...rankings.list].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? '')).slice(0, 10);
 
-  const results: Whiskey[] = searching ? search.data ?? [] : recent.map((r) => r.whiskey);
+  const results: Whiskey[] = searching ? (search.data ?? []) : recent.map((r) => r.whiskey);
 
   const goRate = (whiskeyId: string) =>
     router.replace({ pathname: '/rate/[whiskeyId]', params: { whiskeyId, ...(eventId ? { eventId } : {}) } });
@@ -54,9 +52,9 @@ export default function LogScreen() {
           </Row>
         </Card>
       ) : null}
-      {!searching ? (
+      {!searching && recent.length ? (
         <Text variant="caption" muted style={{ marginBottom: spacing.xs }}>
-          {recent.length ? 'RECENTLY RATED' : ''}
+          RECENTLY RATED
         </Text>
       ) : null}
     </View>
@@ -105,7 +103,7 @@ export default function LogScreen() {
         keyboardDismissMode="on-drag"
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.lg }}
         ListHeaderComponent={header}
-        ListEmptyComponent={empty}
+        ListEmptyComponent={empty()}
         renderItem={({ item }) => (
           <WhiskeyRow
             whiskey={item}

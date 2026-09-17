@@ -121,9 +121,7 @@ export default function EventScreen() {
       if (whiskey) favorites.push({ whiskey, mine });
     }
     favorites.sort((a, b) => (b.mine?.score ?? -1) - (a.mine?.score ?? -1));
-    sections = [
-      { title: null, data: favorites.map((f, i) => ({ kind: 'fav' as const, ...f, rank: i + 1 })) },
-    ];
+    sections = [{ title: null, data: favorites.map((f, i) => ({ kind: 'fav' as const, ...f, rank: i + 1 })) }];
   }
 
   const header = (
@@ -159,7 +157,9 @@ export default function EventScreen() {
       <EmptyState
         icon="wine-outline"
         title="No pours yet"
-        body={canManage ? 'Add the bottles you are opening tonight.' : 'The organizer has not published the lineup yet.'}
+        body={
+          canManage ? 'Add the bottles you are opening tonight.' : 'The organizer has not published the lineup yet.'
+        }
         action={
           canManage ? (
             <Button

@@ -18,12 +18,17 @@ export type RankingRow = Tables<'rankings'>;
 export type RankingView = Views<'v_rankings'>;
 export type RankingWithWhiskey = RankingRow & { whiskey: Whiskey };
 export type Tasting = Tables<'tastings'>;
-export type TastingWithWhiskey = Tasting & { whiskey: Whiskey; flavors: { tag_slug: string; intensity: number | null }[] };
+export type TastingWithWhiskey = Tasting & {
+  whiskey: Whiskey;
+  flavors: { tag_slug: string; intensity: number | null }[];
+};
 export type FlavorTag = Tables<'flavor_tags'>;
 export type Event = Tables<'events'>;
 export type EventPour = Tables<'event_pours'> & { whiskey: Whiskey };
 export type EventWithPours = Event & { pours: EventPour[]; my_membership: { role: Enums<'event_role'> }[] };
-export type EventMember = Tables<'event_members'> & { profile: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url'> };
+export type EventMember = Tables<'event_members'> & {
+  profile: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url'>;
+};
 export type FeedItem = Functions<'feed'>['Returns'][number];
 export type LeaderboardRow = Functions<'event_leaderboard'>['Returns'][number];
 export type TasteMatch = Functions<'taste_match'>['Returns'][number];
@@ -33,7 +38,9 @@ export type FlavorProfileRow = Functions<'whiskey_flavor_profile'>['Returns'][nu
 export type FriendRanking = Functions<'whiskey_friend_rankings'>['Returns'][number];
 export type WishlistRow = Tables<'wishlist'> & { whiskey: Whiskey };
 export type CollectionBottle = Tables<'collection_bottles'> & { whiskey: Whiskey };
-export type Notification = Tables<'notifications'> & { actor: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url'> | null };
+export type Notification = Tables<'notifications'> & {
+  actor: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url'> | null;
+};
 export type FollowRow = Tables<'follows'>;
 
 export const CATEGORY_LABELS: Record<WhiskeyCategory, string> = {
@@ -124,11 +131,32 @@ export async function getWhiskeyExtras(id: string) {
 }
 
 export type NewWhiskey = Pick<TablesInsert<'whiskeys'>, 'name' | 'category' | 'country'> &
-  Partial<Pick<TablesInsert<'whiskeys'>, 'brand' | 'distillery_name' | 'region' | 'age_years' | 'abv' | 'subcategory' | 'cask_type' | 'finish' | 'description' | 'image_url' | 'bottler'>>;
+  Partial<
+    Pick<
+      TablesInsert<'whiskeys'>,
+      | 'brand'
+      | 'distillery_name'
+      | 'region'
+      | 'age_years'
+      | 'abv'
+      | 'subcategory'
+      | 'cask_type'
+      | 'finish'
+      | 'description'
+      | 'image_url'
+      | 'bottler'
+    >
+  >;
 
 export async function createWhiskey(input: NewWhiskey): Promise<Whiskey> {
   const created_by = await me();
-  return unwrap(await supabase.from('whiskeys').insert({ ...input, created_by, status: 'pending' }).select('*').single());
+  return unwrap(
+    await supabase
+      .from('whiskeys')
+      .insert({ ...input, created_by, status: 'pending' })
+      .select('*')
+      .single(),
+  );
 }
 
 export async function getFlavorTags(): Promise<FlavorTag[]> {
@@ -175,17 +203,28 @@ export async function removeRanking(whiskeyId: string): Promise<void> {
 }
 
 // --------------------------------------------------------------- tastings ---
-export type NewTasting = Omit<TablesInsert<'tastings'>, 'user_id'> & { flavors?: { tag_slug: string; intensity?: number | null }[] };
+export type NewTasting = Omit<TablesInsert<'tastings'>, 'user_id'> & {
+  flavors?: { tag_slug: string; intensity?: number | null }[];
+};
 
 export async function createTasting(input: NewTasting): Promise<Tasting> {
   const user_id = await me();
   const { flavors, ...rest } = input;
-  const tasting: Tasting = unwrap(await supabase.from('tastings').insert({ ...rest, user_id }).select('*').single());
+  const tasting: Tasting = unwrap(
+    await supabase
+      .from('tastings')
+      .insert({ ...rest, user_id })
+      .select('*')
+      .single(),
+  );
   if (flavors?.length) await setTastingFlavors(tasting.id, flavors);
   return tasting;
 }
 
-export async function updateTasting(id: string, patch: TablesUpdate<'tastings'> & { flavors?: { tag_slug: string; intensity?: number | null }[] }): Promise<Tasting> {
+export async function updateTasting(
+  id: string,
+  patch: TablesUpdate<'tastings'> & { flavors?: { tag_slug: string; intensity?: number | null }[] },
+): Promise<Tasting> {
   const { flavors, ...rest } = patch;
   const tasting: Tasting = unwrap(await supabase.from('tastings').update(rest).eq('id', id).select('*').single());
   if (flavors) await setTastingFlavors(id, flavors);
@@ -209,7 +248,11 @@ export async function deleteTasting(id: string) {
 
 export async function getTasting(id: string): Promise<TastingWithWhiskey> {
   return unwrap(
-    await supabase.from('tastings').select('*, whiskey:whiskeys(*), flavors:tasting_flavors(tag_slug, intensity)').eq('id', id).single(),
+    await supabase
+      .from('tastings')
+      .select('*, whiskey:whiskeys(*), flavors:tasting_flavors(tag_slug, intensity)')
+      .eq('id', id)
+      .single(),
   );
 }
 
@@ -261,7 +304,12 @@ export function ageOn(birthdate: Date, on = new Date()) {
   return age;
 }
 
-export async function completeOnboarding(input: { username: string; display_name: string; birthdate: Date; home_country: string }) {
+export async function completeOnboarding(input: {
+  username: string;
+  display_name: string;
+  birthdate: Date;
+  home_country: string;
+}) {
   const min = legalDrinkingAge(input.home_country);
   if (ageOn(input.birthdate) < min) {
     throw new Error(`You must be ${min} or older to use Dram.`);
@@ -278,7 +326,9 @@ export async function completeOnboarding(input: { username: string; display_name
 // ----------------------------------------------------------------- social ---
 export async function getFollow(targetId: string): Promise<FollowRow | null> {
   const id = await me();
-  return unwrap(await supabase.from('follows').select('*').eq('follower_id', id).eq('followee_id', targetId).maybeSingle());
+  return unwrap(
+    await supabase.from('follows').select('*').eq('follower_id', id).eq('followee_id', targetId).maybeSingle(),
+  );
 }
 
 export async function follow(targetId: string): Promise<FollowRow> {
@@ -293,7 +343,9 @@ export async function unfollow(targetId: string) {
 
 export async function acceptFollow(followerId: string) {
   const id = await me();
-  unwrap(await supabase.from('follows').update({ status: 'accepted' }).eq('follower_id', followerId).eq('followee_id', id));
+  unwrap(
+    await supabase.from('follows').update({ status: 'accepted' }).eq('follower_id', followerId).eq('followee_id', id),
+  );
 }
 
 export async function listFollowing(userId: string) {
@@ -320,7 +372,9 @@ export async function tasteMatch(otherId: string): Promise<TasteMatch | null> {
   return rows[0] ?? null;
 }
 
-export async function getFeed(opts: { beforeId?: number | null; actor?: string | null; limit?: number } = {}): Promise<FeedItem[]> {
+export async function getFeed(
+  opts: { beforeId?: number | null; actor?: string | null; limit?: number } = {},
+): Promise<FeedItem[]> {
   return unwrap(
     await supabase.rpc('feed', {
       p_limit: opts.limit ?? 30,
@@ -345,7 +399,12 @@ export async function blockUser(targetId: string) {
   unwrap(await supabase.from('blocks').insert({ blocker_id: id, blocked_id: targetId }));
 }
 
-export async function reportContent(input: { target_type: 'tasting' | 'profile' | 'whiskey' | 'comment' | 'event'; target_id: string; reason: 'spam' | 'abuse' | 'inaccurate' | 'duplicate' | 'other'; details?: string }) {
+export async function reportContent(input: {
+  target_type: 'tasting' | 'profile' | 'whiskey' | 'comment' | 'event';
+  target_id: string;
+  reason: 'spam' | 'abuse' | 'inaccurate' | 'duplicate' | 'other';
+  details?: string;
+}) {
   const reporter_id = await me();
   unwrap(await supabase.from('reports').insert({ ...input, reporter_id }));
 }
@@ -355,9 +414,16 @@ export async function trending(days = 14, limit = 20): Promise<Whiskey[]> {
   return unwrap(await supabase.rpc('trending_whiskeys', { p_days: days, p_limit: limit }));
 }
 
-export async function topWhiskeys(f: { category?: WhiskeyCategory; country?: string; region?: string; limit?: number } = {}): Promise<Whiskey[]> {
+export async function topWhiskeys(
+  f: { category?: WhiskeyCategory; country?: string; region?: string; limit?: number } = {},
+): Promise<Whiskey[]> {
   return unwrap(
-    await supabase.rpc('top_whiskeys', { p_category: f.category, p_country: f.country, p_region: f.region, p_limit: f.limit ?? 20 }),
+    await supabase.rpc('top_whiskeys', {
+      p_category: f.category,
+      p_country: f.country,
+      p_region: f.region,
+      p_limit: f.limit ?? 20,
+    }),
   );
 }
 
@@ -379,7 +445,13 @@ export async function listMyEvents(): Promise<(Event & { my_membership: { role: 
 
 export async function listPublicEvents(): Promise<Event[]> {
   return unwrap(
-    await supabase.from('events').select('*').eq('visibility', 'public').gte('starts_at', new Date(Date.now() - 86_400_000).toISOString()).order('starts_at').limit(50),
+    await supabase
+      .from('events')
+      .select('*')
+      .eq('visibility', 'public')
+      .gte('starts_at', new Date(Date.now() - 86_400_000).toISOString())
+      .order('starts_at')
+      .limit(50),
   );
 }
 
@@ -398,17 +470,32 @@ export async function getEvent(id: string): Promise<EventWithPours> {
 
 export async function listEventMembers(eventId: string): Promise<EventMember[]> {
   return unwrap(
-    await supabase.from('event_members').select('*, profile:profiles(id, username, display_name, avatar_url)').eq('event_id', eventId).order('joined_at'),
+    await supabase
+      .from('event_members')
+      .select('*, profile:profiles(id, username, display_name, avatar_url)')
+      .eq('event_id', eventId)
+      .order('joined_at'),
   );
 }
 
 export type NewEvent = Pick<TablesInsert<'events'>, 'name' | 'starts_at'> &
-  Partial<Pick<TablesInsert<'events'>, 'description' | 'venue_name' | 'address' | 'ends_at' | 'timezone' | 'visibility' | 'cover_image_url'>>;
+  Partial<
+    Pick<
+      TablesInsert<'events'>,
+      'description' | 'venue_name' | 'address' | 'ends_at' | 'timezone' | 'visibility' | 'cover_image_url'
+    >
+  >;
 
 export async function createEvent(input: NewEvent): Promise<Event> {
   const created_by = await me();
   // join_code is assigned by a trigger; the generated Insert type requires it so pass a placeholder that the trigger overwrites when null.
-  return unwrap(await supabase.from('events').insert({ ...input, created_by, join_code: null as unknown as string }).select('*').single());
+  return unwrap(
+    await supabase
+      .from('events')
+      .insert({ ...input, created_by, join_code: null as unknown as string })
+      .select('*')
+      .single(),
+  );
 }
 
 export async function updateEvent(id: string, patch: TablesUpdate<'events'>): Promise<Event> {
@@ -432,9 +519,18 @@ export async function leaveEvent(eventId: string) {
   unwrap(await supabase.from('event_members').delete().eq('event_id', eventId).eq('user_id', user_id));
 }
 
-export async function addPour(input: Pick<TablesInsert<'event_pours'>, 'event_id' | 'whiskey_id'> & Partial<Pick<TablesInsert<'event_pours'>, 'label' | 'flight' | 'table_location' | 'sort_order' | 'notes'>>) {
+export async function addPour(
+  input: Pick<TablesInsert<'event_pours'>, 'event_id' | 'whiskey_id'> &
+    Partial<Pick<TablesInsert<'event_pours'>, 'label' | 'flight' | 'table_location' | 'sort_order' | 'notes'>>,
+) {
   const added_by = await me();
-  return unwrap(await supabase.from('event_pours').insert({ ...input, added_by }).select('*').single());
+  return unwrap(
+    await supabase
+      .from('event_pours')
+      .insert({ ...input, added_by })
+      .select('*')
+      .single(),
+  );
 }
 
 export async function updatePour(id: string, patch: TablesUpdate<'event_pours'>) {
@@ -460,7 +556,13 @@ export async function listMyEventTastings(eventId: string): Promise<Tasting[]> {
 
 // -------------------------------------------------------- wishlist & bar ----
 export async function listWishlist(userId: string): Promise<WishlistRow[]> {
-  return unwrap(await supabase.from('wishlist').select(SELECT_WHISKEY_EMBED).eq('user_id', userId).order('created_at', { ascending: false }));
+  return unwrap(
+    await supabase
+      .from('wishlist')
+      .select(SELECT_WHISKEY_EMBED)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }),
+  );
 }
 
 export async function setWishlisted(whiskeyId: string, on: boolean) {
@@ -470,12 +572,24 @@ export async function setWishlisted(whiskeyId: string, on: boolean) {
 }
 
 export async function listCollection(userId: string): Promise<CollectionBottle[]> {
-  return unwrap(await supabase.from('collection_bottles').select(SELECT_WHISKEY_EMBED).eq('user_id', userId).order('created_at', { ascending: false }));
+  return unwrap(
+    await supabase
+      .from('collection_bottles')
+      .select(SELECT_WHISKEY_EMBED)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }),
+  );
 }
 
 export async function addBottle(input: Omit<TablesInsert<'collection_bottles'>, 'user_id'>) {
   const user_id = await me();
-  return unwrap(await supabase.from('collection_bottles').insert({ ...input, user_id }).select('*').single());
+  return unwrap(
+    await supabase
+      .from('collection_bottles')
+      .insert({ ...input, user_id })
+      .select('*')
+      .single(),
+  );
 }
 
 export async function updateBottle(id: string, patch: TablesUpdate<'collection_bottles'>) {
@@ -499,7 +613,11 @@ export async function listNotifications(): Promise<Notification[]> {
 
 export async function markNotificationsRead(ids?: number[]) {
   const user_id = await me();
-  let q = supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', user_id).is('read_at', null);
+  let q = supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('user_id', user_id)
+    .is('read_at', null);
   if (ids?.length) q = q.in('id', ids);
   unwrap(await q);
 }
@@ -548,7 +666,10 @@ export interface IdentifyResult {
   matches: Whiskey[];
 }
 
-export async function identifyLabel(imageBase64: string, mediaType: 'image/jpeg' | 'image/png' | 'image/webp'): Promise<IdentifyResult> {
+export async function identifyLabel(
+  imageBase64: string,
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp',
+): Promise<IdentifyResult> {
   const { data, error } = await supabase.functions.invoke<IdentifyResult>('identify-label', {
     body: { image_base64: imageBase64, media_type: mediaType },
   });

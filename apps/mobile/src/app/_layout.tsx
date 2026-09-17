@@ -45,7 +45,14 @@ export default function RootLayout() {
       <ThemeProvider
         value={{
           ...navTheme,
-          colors: { ...navTheme.colors, background: t.bg, card: t.card, text: t.text, border: t.border, primary: t.accent },
+          colors: {
+            ...navTheme.colors,
+            background: t.bg,
+            card: t.card,
+            text: t.text,
+            border: t.border,
+            primary: t.accent,
+          },
         }}>
         <QueryProvider>
           <AuthProvider>

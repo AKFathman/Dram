@@ -57,8 +57,7 @@ export function EventJoinCode({ event }: { event: Event }) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const share = () =>
-    Share.share({ message: `Join ${event.name} on Dram — code ${event.join_code}` }).catch(() => {});
+  const share = () => Share.share({ message: `Join ${event.name} on Dram — code ${event.join_code}` }).catch(() => {});
 
   return (
     <Card style={{ paddingVertical: spacing.md }}>

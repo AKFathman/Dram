@@ -29,12 +29,22 @@ export default function Welcome() {
   return (
     <Screen edges={['top', 'bottom']}>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: spacing.md }}>
-        <View style={{ width: 96, height: 96, borderRadius: 28, backgroundColor: t.accent, alignItems: 'center', justifyContent: 'center' }}>
+        <View
+          style={{
+            width: 96,
+            height: 96,
+            borderRadius: 28,
+            backgroundColor: t.accent,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
           <Ionicons name="wine" size={52} color="#fff" />
         </View>
         <Text variant="title">Dram</Text>
         <Text muted style={{ textAlign: 'center', maxWidth: 300 }}>
-          {"Every whiskey you've tried, ranked the easy way. Find your favorites by region, share with friends, and never lose track at a tasting."}
+          {
+            "Every whiskey you've tried, ranked the easy way. Find your favorites by region, share with friends, and never lose track at a tasting."
+          }
         </Text>
       </View>
 
@@ -52,7 +62,13 @@ export default function Welcome() {
             onPress={() => run('apple')}
           />
         ) : null}
-        <Button title="Continue with Google" variant="secondary" icon="logo-google" loading={busy === 'google'} onPress={() => run('google')} />
+        <Button
+          title="Continue with Google"
+          variant="secondary"
+          icon="logo-google"
+          loading={busy === 'google'}
+          onPress={() => run('google')}
+        />
         <Button title="Continue with email" variant="ghost" icon="mail-outline" onPress={() => router.push('/email')} />
         <Spacer h={spacing.sm} />
         <Text variant="small" muted style={{ textAlign: 'center' }}>

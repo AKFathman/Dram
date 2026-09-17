@@ -17,9 +17,7 @@ function TierBar({ counts }: { counts: Record<(typeof TIER_ORDER)[number], numbe
   return (
     <View style={styles.bar}>
       {TIER_ORDER.map((tier) =>
-        counts[tier] > 0 ? (
-          <View key={tier} style={{ flex: counts[tier], backgroundColor: t.tier[tier] }} />
-        ) : null,
+        counts[tier] > 0 ? <View key={tier} style={{ flex: counts[tier], backgroundColor: t.tier[tier] }} /> : null,
       )}
     </View>
   );
@@ -50,10 +48,7 @@ export function EventLeaderboardRow({
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : undefined}
       accessibilityLabel={`${rank}. ${row.whiskey_name ?? 'Unknown'}`}
-      style={({ pressed }) => [
-        styles.row,
-        { borderBottomColor: t.border, opacity: thin ? 0.55 : pressed ? 0.7 : 1 },
-      ]}>
+      style={({ pressed }) => [styles.row, { borderBottomColor: t.border, opacity: thin ? 0.55 : pressed ? 0.7 : 1 }]}>
       <Text variant="h3" muted style={{ width: 26, textAlign: 'right' }}>
         {rank}
       </Text>

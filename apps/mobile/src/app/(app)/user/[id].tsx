@@ -108,7 +108,9 @@ export default function UserProfileScreen() {
       <Stack.Screen
         options={{
           title: profile.username ? `@${profile.username}` : '',
-          headerRight: () => <IconButton name="ellipsis-horizontal" accessibilityLabel="More options" onPress={openMenu} />,
+          headerRight: () => (
+            <IconButton name="ellipsis-horizontal" accessibilityLabel="More options" onPress={openMenu} />
+          ),
         }}
       />
       <Screen edges={[]}>
@@ -128,7 +130,13 @@ export default function UserProfileScreen() {
             renderItem={({ item }) => <FeedCard item={item} />}
             ListFooterComponent={feed.isFetchingNextPage ? <Loading /> : null}
             ListEmptyComponent={
-              isPrivate ? privateState : feed.isPending ? <Loading /> : <EmptyState icon="pulse-outline" title="Nothing yet" />
+              isPrivate ? (
+                privateState
+              ) : feed.isPending ? (
+                <Loading />
+              ) : (
+                <EmptyState icon="pulse-outline" title="Nothing yet" />
+              )
             }
           />
         ) : segment === 'regions' ? (
@@ -204,7 +212,13 @@ function RegionList({
         </View>
       )}
       ListEmptyComponent={
-        isPrivate ? privateState : rankings.isPending ? <Loading /> : <EmptyState icon="map-outline" title="No regions yet" />
+        isPrivate ? (
+          privateState
+        ) : rankings.isPending ? (
+          <Loading />
+        ) : (
+          <EmptyState icon="map-outline" title="No regions yet" />
+        )
       }
     />
   );

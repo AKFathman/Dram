@@ -1,14 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import {
-  answer,
-  deriveList,
-  insertAt,
-  maxQuestions,
-  nextCandidate,
-  startSession,
-  tierScore,
-} from '../ranking';
+import { answer, deriveList, insertAt, maxQuestions, nextCandidate, startSession, tierScore } from '../ranking';
 
 describe('tierScore (mirrors SQL tier_band + recompute_tier_scores)', () => {
   it('puts a lone item mid-band', () => {

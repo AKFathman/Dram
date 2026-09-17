@@ -5,7 +5,19 @@ import { FlatList } from 'react-native';
 import { DiscoverBrowse } from '@/components/discover-browse';
 import { Segmented } from '@/components/discover-segmented';
 import { UserRow } from '@/components/user-row';
-import { Button, Card, Chip, EmptyState, ErrorState, Loading, Row, Screen, SearchBar, Spacer, Text } from '@/components/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  ErrorState,
+  Loading,
+  Row,
+  Screen,
+  SearchBar,
+  Spacer,
+  Text,
+} from '@/components/ui';
 import { WhiskeyRow } from '@/components/whiskey-row';
 import { useMyRankings, useProfileSearch, useSearch } from '@/hooks';
 import { categoryLabel, type WhiskeyCategory } from '@/lib/api';
@@ -93,7 +105,11 @@ export default function DiscoverScreen() {
             ) : results.isFetching ? (
               <Loading />
             ) : (
-              <EmptyState icon="search-outline" title="No matches" body="Try a shorter search, or add the bottle yourself." />
+              <EmptyState
+                icon="search-outline"
+                title="No matches"
+                body="Try a shorter search, or add the bottle yourself."
+              />
             )
           }
           ListFooterComponent={
@@ -127,13 +143,7 @@ export default function DiscoverScreen() {
   );
 }
 
-function PeopleResults({
-  term,
-  query,
-}: {
-  term: string;
-  query: ReturnType<typeof useProfileSearch>;
-}) {
+function PeopleResults({ term, query }: { term: string; query: ReturnType<typeof useProfileSearch> }) {
   if (term.length < 2) {
     return <EmptyState icon="people-outline" title="Find your people" body="Search by name or @username." />;
   }
@@ -151,4 +161,3 @@ function PeopleResults({
     />
   );
 }
-

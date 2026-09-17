@@ -24,8 +24,20 @@ export default function TabsLayout() {
         tabBarStyle: { backgroundColor: t.card, borderTopColor: t.border },
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'Home', tabBarIcon: (p: IconProps) => <TabIcon {...p} name="home-outline" focusedName="home" /> }} />
-      <Tabs.Screen name="search" options={{ title: 'Discover', tabBarIcon: (p: IconProps) => <TabIcon {...p} name="compass-outline" focusedName="compass" /> }} />
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Home',
+          tabBarIcon: (p: IconProps) => <TabIcon {...p} name="home-outline" focusedName="home" />,
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          title: 'Discover',
+          tabBarIcon: (p: IconProps) => <TabIcon {...p} name="compass-outline" focusedName="compass" />,
+        }}
+      />
       <Tabs.Screen
         name="log"
         options={{
@@ -52,8 +64,20 @@ export default function TabsLayout() {
           },
         }}
       />
-      <Tabs.Screen name="events" options={{ title: 'Events', tabBarIcon: (p: IconProps) => <TabIcon {...p} name="people-outline" focusedName="people" /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile', tabBarIcon: (p: IconProps) => <TabIcon {...p} name="person-outline" focusedName="person" /> }} />
+      <Tabs.Screen
+        name="events"
+        options={{
+          title: 'Events',
+          tabBarIcon: (p: IconProps) => <TabIcon {...p} name="people-outline" focusedName="people" />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: (p: IconProps) => <TabIcon {...p} name="person-outline" focusedName="person" />,
+        }}
+      />
     </Tabs>
   );
 }

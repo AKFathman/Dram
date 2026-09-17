@@ -28,7 +28,12 @@ export function useWhiskey(id: string | undefined) {
 }
 
 export function useWhiskeyExtras(id: string | undefined) {
-  return useQuery({ queryKey: keys.whiskeyExtras(id ?? ''), queryFn: () => api.getWhiskeyExtras(id!), enabled: !!id, staleTime: 5 * 60_000 });
+  return useQuery({
+    queryKey: keys.whiskeyExtras(id ?? ''),
+    queryFn: () => api.getWhiskeyExtras(id!),
+    enabled: !!id,
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useFlavorTags() {
@@ -65,7 +70,7 @@ export function useMyRankings() {
 
 export function useMyRankingFor(whiskeyId: string | undefined) {
   const { byWhiskey, ...rest } = useMyRankings();
-  return { ...rest, ranking: whiskeyId ? byWhiskey.get(whiskeyId) ?? null : null };
+  return { ...rest, ranking: whiskeyId ? (byWhiskey.get(whiskeyId) ?? null) : null };
 }
 
 function invalidateRankingStuff(qc: ReturnType<typeof useQueryClient>, whiskeyId: string, eventId?: string | null) {
@@ -108,7 +113,11 @@ export function useTierCandidates(tier: Tier | null, whiskeyId: string, preferId
 
 // --------------------------------------------------------------- tastings ---
 export function useTastings(userId: string | undefined, whiskeyId?: string) {
-  return useQuery({ queryKey: keys.tastings(userId ?? '', whiskeyId), queryFn: () => api.listTastings(userId!, whiskeyId), enabled: !!userId });
+  return useQuery({
+    queryKey: keys.tastings(userId ?? '', whiskeyId),
+    queryFn: () => api.listTastings(userId!, whiskeyId),
+    enabled: !!userId,
+  });
 }
 
 export function useTasting(id: string | undefined) {
@@ -131,7 +140,8 @@ export function useCreateTasting() {
 export function useUpdateTasting() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updateTasting>[1]) => api.updateTasting(id, patch),
+    mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updateTasting>[1]) =>
+      api.updateTasting(id, patch),
     onSuccess: (t) => {
       qc.invalidateQueries({ queryKey: ['tastings'] });
       qc.invalidateQueries({ queryKey: keys.tasting(t.id) });
@@ -158,7 +168,11 @@ export function useProfile(id: string | undefined) {
 }
 
 export function useProfileSearch(q: string) {
-  return useQuery({ queryKey: ['profile-search', q], queryFn: () => api.searchProfiles(q), enabled: q.trim().length >= 2 });
+  return useQuery({
+    queryKey: ['profile-search', q],
+    queryFn: () => api.searchProfiles(q),
+    enabled: q.trim().length >= 2,
+  });
 }
 
 export function useUpdateProfile() {
@@ -175,7 +189,11 @@ export function useUpdateProfile() {
 
 export function useFollowState(targetId: string | undefined) {
   const qc = useQueryClient();
-  const query = useQuery({ queryKey: keys.follows(targetId ?? ''), queryFn: () => api.getFollow(targetId!), enabled: !!targetId });
+  const query = useQuery({
+    queryKey: keys.follows(targetId ?? ''),
+    queryFn: () => api.getFollow(targetId!),
+    enabled: !!targetId,
+  });
   const toggle = useMutation({
     mutationFn: async () => {
       if (!targetId) return;
@@ -190,7 +208,12 @@ export function useFollowState(targetId: string | undefined) {
       qc.invalidateQueries({ queryKey: keys.me });
     },
   });
-  return { ...query, isFollowing: query.data?.status === 'accepted', isPending: query.data?.status === 'pending', toggle };
+  return {
+    ...query,
+    isFollowing: query.data?.status === 'accepted',
+    isPending: query.data?.status === 'pending',
+    toggle,
+  };
 }
 
 export function useTasteMatch(otherId: string | undefined) {
@@ -223,7 +246,8 @@ export function useFeed(actor?: string | null) {
 export function useToggleLike() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ tastingId, liked }: { tastingId: string; liked: boolean }) => (liked ? api.unlikeTasting(tastingId) : api.likeTasting(tastingId)),
+    mutationFn: ({ tastingId, liked }: { tastingId: string; liked: boolean }) =>
+      liked ? api.unlikeTasting(tastingId) : api.likeTasting(tastingId),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['feed'] }),
   });
 }
@@ -250,13 +274,26 @@ export function useEvent(id: string | undefined) {
   return useQuery({ queryKey: keys.event(id ?? ''), queryFn: () => api.getEvent(id!), enabled: !!id });
 }
 export function useEventMembers(id: string | undefined) {
-  return useQuery({ queryKey: [...keys.event(id ?? ''), 'members'], queryFn: () => api.listEventMembers(id!), enabled: !!id });
+  return useQuery({
+    queryKey: [...keys.event(id ?? ''), 'members'],
+    queryFn: () => api.listEventMembers(id!),
+    enabled: !!id,
+  });
 }
 export function useLeaderboard(id: string | undefined) {
-  return useQuery({ queryKey: keys.leaderboard(id ?? ''), queryFn: () => api.getLeaderboard(id!), enabled: !!id, refetchInterval: 30_000 });
+  return useQuery({
+    queryKey: keys.leaderboard(id ?? ''),
+    queryFn: () => api.getLeaderboard(id!),
+    enabled: !!id,
+    refetchInterval: 30_000,
+  });
 }
 export function useMyEventTastings(id: string | undefined) {
-  return useQuery({ queryKey: keys.myEventTastings(id ?? ''), queryFn: () => api.listMyEventTastings(id!), enabled: !!id });
+  return useQuery({
+    queryKey: keys.myEventTastings(id ?? ''),
+    queryFn: () => api.listMyEventTastings(id!),
+    enabled: !!id,
+  });
 }
 export function useCreateEvent() {
   const qc = useQueryClient();
@@ -265,7 +302,8 @@ export function useCreateEvent() {
 export function useUpdateEvent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updateEvent>[1]) => api.updateEvent(id, patch),
+    mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updateEvent>[1]) =>
+      api.updateEvent(id, patch),
     onSuccess: (e) => {
       qc.invalidateQueries({ queryKey: keys.event(e.id) });
       qc.invalidateQueries({ queryKey: keys.events });
@@ -278,7 +316,10 @@ export function useJoinEvent() {
 }
 export function useJoinPublicEvent() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: api.joinPublicEvent, onSuccess: () => qc.invalidateQueries({ queryKey: ['events'] }) });
+  return useMutation({
+    mutationFn: api.joinPublicEvent,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['events'] }),
+  });
 }
 export function useLeaveEvent() {
   const qc = useQueryClient();
@@ -292,7 +333,11 @@ export function usePourMutations(eventId: string) {
   };
   return {
     add: useMutation({ mutationFn: api.addPour, onSuccess: done }),
-    update: useMutation({ mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updatePour>[1]) => api.updatePour(id, patch), onSuccess: done }),
+    update: useMutation({
+      mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updatePour>[1]) =>
+        api.updatePour(id, patch),
+      onSuccess: done,
+    }),
     remove: useMutation({ mutationFn: api.removePour, onSuccess: done }),
     matchLines: useMutation({ mutationFn: api.matchLines }),
   };
@@ -300,7 +345,11 @@ export function usePourMutations(eventId: string) {
 
 // -------------------------------------------------------- wishlist & bar ----
 export function useWishlist(userId: string | undefined) {
-  return useQuery({ queryKey: [...keys.wishlist, userId], queryFn: () => api.listWishlist(userId!), enabled: !!userId });
+  return useQuery({
+    queryKey: [...keys.wishlist, userId],
+    queryFn: () => api.listWishlist(userId!),
+    enabled: !!userId,
+  });
 }
 export function useToggleWishlist() {
   const qc = useQueryClient();
@@ -313,14 +362,22 @@ export function useToggleWishlist() {
   });
 }
 export function useCollection(userId: string | undefined) {
-  return useQuery({ queryKey: [...keys.collection, userId], queryFn: () => api.listCollection(userId!), enabled: !!userId });
+  return useQuery({
+    queryKey: [...keys.collection, userId],
+    queryFn: () => api.listCollection(userId!),
+    enabled: !!userId,
+  });
 }
 export function useCollectionMutations() {
   const qc = useQueryClient();
   const done = () => qc.invalidateQueries({ queryKey: keys.collection });
   return {
     add: useMutation({ mutationFn: api.addBottle, onSuccess: done }),
-    update: useMutation({ mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updateBottle>[1]) => api.updateBottle(id, patch), onSuccess: done }),
+    update: useMutation({
+      mutationFn: ({ id, ...patch }: { id: string } & Parameters<typeof api.updateBottle>[1]) =>
+        api.updateBottle(id, patch),
+      onSuccess: done,
+    }),
     remove: useMutation({ mutationFn: api.removeBottle, onSuccess: done }),
   };
 }
@@ -331,12 +388,16 @@ export function useNotifications() {
 }
 export function useMarkNotificationsRead() {
   const qc = useQueryClient();
-  return useMutation({ mutationFn: api.markNotificationsRead, onSuccess: () => qc.invalidateQueries({ queryKey: keys.notifications }) });
+  return useMutation({
+    mutationFn: api.markNotificationsRead,
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.notifications }),
+  });
 }
 
 // ---------------------------------------------------------- identify-label --
 export function useIdentifyLabel() {
   return useMutation({
-    mutationFn: ({ base64, mediaType }: { base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' }) => api.identifyLabel(base64, mediaType),
+    mutationFn: ({ base64, mediaType }: { base64: string; mediaType: 'image/jpeg' | 'image/png' | 'image/webp' }) =>
+      api.identifyLabel(base64, mediaType),
   });
 }

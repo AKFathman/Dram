@@ -95,7 +95,11 @@ export default function MyListScreen() {
             wishlist.isPending ? (
               <Loading />
             ) : (
-              <EmptyState icon="heart-outline" title="Nothing on the wishlist" body="Tap the heart on any whiskey to save it." />
+              <EmptyState
+                icon="heart-outline"
+                title="Nothing on the wishlist"
+                body="Tap the heart on any whiskey to save it."
+              />
             )
           }
         />

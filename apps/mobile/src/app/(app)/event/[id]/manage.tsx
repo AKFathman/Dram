@@ -4,7 +4,21 @@ import React, { useState } from 'react';
 import { Alert, Pressable, Share, View } from 'react-native';
 
 import { EventLineupEditor } from '@/components/event-lineup-editor';
-import { Avatar, Button, Card, Chip, Divider, EmptyState, ErrorState, Input, Loading, Row, Screen, Spacer, Text } from '@/components/ui';
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Divider,
+  EmptyState,
+  ErrorState,
+  Input,
+  Loading,
+  Row,
+  Screen,
+  Spacer,
+  Text,
+} from '@/components/ui';
 import type { LeaderboardRow } from '@/lib/api';
 import type { Enums } from '@/lib/database.types';
 import { useEvent, useEventMembers, useLeaderboard, useUpdateEvent } from '@/hooks';
@@ -164,7 +178,12 @@ export default function ManageEvent() {
           </Text>
           <Row gap={spacing.sm}>
             {VISIBILITY.map((v) => (
-              <Chip key={v.value} label={v.label} selected={form.visibility === v.value} onPress={() => patch({ visibility: v.value })} />
+              <Chip
+                key={v.value}
+                label={v.label}
+                selected={form.visibility === v.value}
+                onPress={() => patch({ visibility: v.value })}
+              />
             ))}
           </Row>
         </View>
@@ -174,7 +193,12 @@ export default function ManageEvent() {
           </Text>
           <Row gap={spacing.sm}>
             {STATUS.map((s) => (
-              <Chip key={s.value} label={s.label} selected={form.status === s.value} onPress={() => patch({ status: s.value })} />
+              <Chip
+                key={s.value}
+                label={s.label}
+                selected={form.status === s.value}
+                onPress={() => patch({ status: s.value })}
+              />
             ))}
           </Row>
         </View>

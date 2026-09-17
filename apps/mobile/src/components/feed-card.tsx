@@ -40,8 +40,19 @@ export type FeedTasting = {
   tasted_at: string | null;
   flavors: string[] | null;
 };
-export type FeedEventRef = { id: string | null; name: string | null; starts_at: string | null; venue_name: string | null };
-export type FeedPayload = { tier: Tier | null; score: number | null; overall_rank: number | null; total: number | null; is_new: boolean | null };
+export type FeedEventRef = {
+  id: string | null;
+  name: string | null;
+  starts_at: string | null;
+  venue_name: string | null;
+};
+export type FeedPayload = {
+  tier: Tier | null;
+  score: number | null;
+  overall_rank: number | null;
+  total: number | null;
+  is_new: boolean | null;
+};
 
 function subtitleOf(w: FeedWhiskey) {
   const place = w.region ?? w.country;
@@ -228,7 +239,9 @@ export function FeedCard({ item }: { item: FeedItem }) {
               disabled={like.isPending}
               onPress={() => like.mutate({ tastingId: tasting.id, liked })}
               hitSlop={8}
-              style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 }]}>
+              style={({ pressed }) => [
+                { flexDirection: 'row', alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 },
+              ]}>
               <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={liked ? t.danger : t.muted} />
               <Text variant="small" muted>
                 {tasting.likes_count ?? 0}

@@ -44,7 +44,12 @@ export default function Onboarding() {
     if (!ageOk) return Alert.alert(`You must be ${minAge}+`, 'Dram is only for people of legal drinking age.');
     setBusy(true);
     try {
-      await completeOnboarding({ username, display_name: displayName.trim() || username, birthdate: birth, home_country: country });
+      await completeOnboarding({
+        username,
+        display_name: displayName.trim() || username,
+        birthdate: birth,
+        home_country: country,
+      });
       await refreshProfile();
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -63,15 +68,27 @@ export default function Onboarding() {
 
       <View style={{ gap: spacing.lg }}>
         <View style={{ gap: spacing.xs }}>
-          <Text variant="caption" muted>USERNAME</Text>
-          <Input placeholder="e.g. peatfreak" autoCapitalize="none" autoCorrect={false} value={username} onChangeText={(v) => setUsername(v.toLowerCase())} />
+          <Text variant="caption" muted>
+            USERNAME
+          </Text>
+          <Input
+            placeholder="e.g. peatfreak"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={username}
+            onChangeText={(v) => setUsername(v.toLowerCase())}
+          />
         </View>
         <View style={{ gap: spacing.xs }}>
-          <Text variant="caption" muted>DISPLAY NAME</Text>
+          <Text variant="caption" muted>
+            DISPLAY NAME
+          </Text>
           <Input placeholder="How friends see you" value={displayName} onChangeText={setDisplayName} />
         </View>
         <View style={{ gap: spacing.xs }}>
-          <Text variant="caption" muted>COUNTRY</Text>
+          <Text variant="caption" muted>
+            COUNTRY
+          </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
             {COUNTRIES.map((c) => (
               <Chip key={c.code} label={c.label} selected={country === c.code} onPress={() => setCountry(c.code)} />
@@ -79,8 +96,16 @@ export default function Onboarding() {
           </View>
         </View>
         <View style={{ gap: spacing.xs }}>
-          <Text variant="caption" muted>BIRTHDAY (YYYY-MM-DD)</Text>
-          <Input placeholder="1990-06-15" keyboardType="numbers-and-punctuation" value={dob} onChangeText={setDob} maxLength={10} />
+          <Text variant="caption" muted>
+            BIRTHDAY (YYYY-MM-DD)
+          </Text>
+          <Input
+            placeholder="1990-06-15"
+            keyboardType="numbers-and-punctuation"
+            value={dob}
+            onChangeText={setDob}
+            maxLength={10}
+          />
           <Text variant="small" muted>
             You must be {minAge} or older. We store only that you passed the check, not your birthday.
           </Text>

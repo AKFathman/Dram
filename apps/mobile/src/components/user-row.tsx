@@ -26,7 +26,9 @@ export function UserRow({
   const go = onPress ?? (() => router.push({ pathname: '/user/[id]', params: { id: profile.id } }));
   const sub =
     subtitle ??
-    (profile.rankings_count != null ? `@${profile.username} · ${profile.rankings_count} ranked` : `@${profile.username}`);
+    (profile.rankings_count != null
+      ? `@${profile.username} · ${profile.rankings_count} ranked`
+      : `@${profile.username}`);
   return (
     <Pressable
       onPress={go}

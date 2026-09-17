@@ -206,7 +206,12 @@ export default function Settings() {
       <Card style={{ gap: spacing.sm }}>
         <Row gap={spacing.sm}>
           {VISIBILITY.map((v) => (
-            <Chip key={v.value} label={v.label} selected={visibility === v.value} onPress={() => setVisibility(v.value)} />
+            <Chip
+              key={v.value}
+              label={v.label}
+              selected={visibility === v.value}
+              onPress={() => setVisibility(v.value)}
+            />
           ))}
         </Row>
         <Text variant="small" muted>

@@ -30,8 +30,7 @@ export function TastingFlavorPicker({ value, onChange }: { value: string[]; onCh
     else groups.set(tag.group_label, [tag]);
   }
 
-  const toggle = (slug: string) =>
-    onChange(value.includes(slug) ? value.filter((s) => s !== slug) : [...value, slug]);
+  const toggle = (slug: string) => onChange(value.includes(slug) ? value.filter((s) => s !== slug) : [...value, slug]);
 
   return (
     <View style={{ gap: spacing.lg }}>

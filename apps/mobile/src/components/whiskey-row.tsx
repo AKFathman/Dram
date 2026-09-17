@@ -77,7 +77,13 @@ export function WhiskeyRow({
           </Text>
         ) : null}
       </View>
-      {right !== undefined ? right : mine ? <ScoreBadge score={mine.score} /> : <ScoreBadge score={whiskey.avg_score} size="sm" />}
+      {right !== undefined ? (
+        right
+      ) : mine ? (
+        <ScoreBadge score={mine.score} />
+      ) : (
+        <ScoreBadge score={whiskey.avg_score} size="sm" />
+      )}
     </Pressable>
   );
 }
