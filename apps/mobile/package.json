@@ -55,7 +55,6 @@
   },
   "scripts": {
     "start": "expo start",
-    "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
@@ -63,7 +62,8 @@
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "format": "prettier --check .",
-    "assets:placeholder": "python3 scripts/make-placeholder-icons.py"
+    "assets:placeholder": "python3 scripts/make-placeholder-icons.py",
+    "postinstall": "node scripts/ensure-assets.js"
   },
   "private": true,
   "jest": {
