@@ -11,7 +11,7 @@ import { radius, spacing, useTheme } from '@/theme';
 const CODE_LENGTH = 6;
 
 /** Accept a bare join code, or any link carrying `code=XXXXXX` (e.g. dram://event/join?code=ABC123). */
-export function extractJoinCode(raw: string): string | null {
+function extractJoinCode(raw: string): string | null {
   const s = raw.trim();
   if (!s) return null;
   const inUrl = /[?&#]code=([A-Za-z0-9]{4,12})/i.exec(s);

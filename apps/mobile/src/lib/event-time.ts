@@ -31,23 +31,6 @@ export function formatEventDate(startsAt: string, endsAt?: string | null): strin
   return `${head} – ${day(end, withYear || end.getFullYear() !== start.getFullYear())}, ${clock(end)}`;
 }
 
-/** Short relative time, e.g. "just now", "4m ago". */
-export function eventTimeAgo(value: string | number | Date | null | undefined): string {
-  if (value === null || value === undefined) return '';
-  const then = new Date(value).getTime();
-  if (Number.isNaN(then)) return '';
-  const secs = Math.max(0, Math.round((Date.now() - then) / 1000));
-  if (secs < 10) return 'just now';
-  if (secs < 60) return `${secs}s ago`;
-  const mins = Math.round(secs / 60);
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(then).toLocaleDateString();
-}
-
 const two = (n: number) => String(n).padStart(2, '0');
 
 /** Parse the "YYYY-MM-DD HH:mm" text inputs on the create-event form, in local time. */

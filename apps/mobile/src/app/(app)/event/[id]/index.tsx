@@ -7,10 +7,10 @@ import { EventLeaderboardRow } from '@/components/event-leaderboard-row';
 import { Button, Chip, EmptyState, ErrorState, Loading, Row, ScoreBadge, Screen, Spacer, Text } from '@/components/ui';
 import { WhiskeyRow } from '@/components/whiskey-row';
 import { whiskeySubtitle, type EventPour, type LeaderboardRow, type Whiskey } from '@/lib/api';
-import { eventTimeAgo } from '@/lib/event-time';
 import { formatScore, type Tier } from '@/lib/ranking';
+import { timeAgo } from '@/lib/time';
 import { useEvent, useLeaderboard, useLeaveEvent, useMyEventTastings, useMyRankings } from '@/hooks';
-import { spacing, useTheme } from '@/theme';
+import { spacing } from '@/theme';
 
 type TabKey = 'lineup' | 'leaderboard' | 'favorites';
 const TABS: { key: TabKey; label: string }[] = [
@@ -34,7 +34,6 @@ interface Section {
 }
 
 export default function EventScreen() {
-  const t = useTheme();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [tab, setTab] = useState<TabKey>('lineup');
@@ -45,7 +44,12 @@ export default function EventScreen() {
   const { byWhiskey } = useMyRankings();
   const leave = useLeaveEvent();
 
-  if (event.isPending && !event.data) return <Loading />;
+  if (event.isPending && !event.data)
+    return (
+      <Screen>
+        <Loading />
+      </Screen>
+    );
   if (event.error || !event.data) {
     return (
       <Screen>
@@ -108,17 +112,18 @@ export default function EventScreen() {
     ];
   } else {
     const seen = new Set<string>();
-    const favorites: ListRow[] = [];
+    const favorites: { whiskey: Whiskey; mine: Mine | null }[] = [];
     for (const tasting of myTastings.data ?? []) {
       if (seen.has(tasting.whiskey_id)) continue;
       seen.add(tasting.whiskey_id);
-      const ranking = byWhiskey.get(tasting.whiskey_id) ?? null;
-      const whiskey = pours.find((p) => p.whiskey_id === tasting.whiskey_id)?.whiskey ?? ranking?.whiskey;
-      if (!whiskey) continue;
-      favorites.push({ kind: 'fav', whiskey, mine: ranking, rank: 0 });
+      const mine = byWhiskey.get(tasting.whiskey_id) ?? null;
+      const whiskey = pours.find((p) => p.whiskey_id === tasting.whiskey_id)?.whiskey ?? mine?.whiskey;
+      if (whiskey) favorites.push({ whiskey, mine });
     }
-    favorites.sort((a, b) => (b.kind === 'fav' ? b.mine?.score ?? -1 : -1) - (a.kind === 'fav' ? a.mine?.score ?? -1 : -1));
-    sections = [{ title: null, data: favorites.map((f, i) => ({ ...f, rank: i + 1 }) as ListRow) }];
+    favorites.sort((a, b) => (b.mine?.score ?? -1) - (a.mine?.score ?? -1));
+    sections = [
+      { title: null, data: favorites.map((f, i) => ({ kind: 'fav' as const, ...f, rank: i + 1 })) },
+    ];
   }
 
   const header = (
@@ -143,7 +148,7 @@ export default function EventScreen() {
       </Row>
       {tab === 'leaderboard' && leaderboard.dataUpdatedAt ? (
         <Text variant="caption" muted>
-          Updated {eventTimeAgo(leaderboard.dataUpdatedAt)}
+          Updated {timeAgo(new Date(leaderboard.dataUpdatedAt).toISOString())}
         </Text>
       ) : null}
     </View>
@@ -242,7 +247,7 @@ export default function EventScreen() {
                 }
               />
               {!tried && ranking ? (
-                <Text variant="caption" muted style={{ paddingLeft: 52 + spacing.md, paddingVertical: spacing.xs, color: t.muted }}>
+                <Text variant="caption" muted style={{ paddingLeft: 52 + spacing.md, paddingVertical: spacing.xs }}>
                   You&apos;ve had this before · {formatScore(ranking.score)}
                 </Text>
               ) : null}

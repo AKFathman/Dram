@@ -32,7 +32,7 @@ export function WhiskeyCommunity({ whiskey: w }: { whiskey: Whiskey }) {
 
       {total > 0 ? (
         <>
-          <Row gap={2} style={{ height: 12, borderRadius: radius.pill, overflow: 'hidden' }}>
+          <Row gap={2} style={{ height: 12, alignItems: 'stretch', borderRadius: radius.pill, overflow: 'hidden' }}>
             {TIER_ORDER.filter((tier) => counts[tier] > 0).map((tier) => (
               <View key={tier} style={{ flex: counts[tier], backgroundColor: t.tier[tier], height: '100%' }} />
             ))}

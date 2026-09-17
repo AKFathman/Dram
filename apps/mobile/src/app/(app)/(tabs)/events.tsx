@@ -11,7 +11,7 @@ import { useJoinPublicEvent, useMyEvents, usePublicEvents } from '@/hooks';
 import { spacing } from '@/theme';
 
 type Role = Enums<'event_role'>;
-interface Row {
+interface EventRow {
   event: Event;
   role: Role | null;
   joinable: boolean;
@@ -19,7 +19,7 @@ interface Row {
 interface Section {
   title: string;
   empty: string;
-  data: Row[];
+  data: EventRow[];
 }
 
 export default function EventsTab() {
@@ -31,7 +31,7 @@ export default function EventsTab() {
   const myEvents = mine.data ?? [];
   const myIds = new Set(myEvents.map((e) => e.id));
 
-  const toRow = (e: (typeof myEvents)[number]): Row => ({
+  const toRow = (e: (typeof myEvents)[number]): EventRow => ({
     event: e,
     role: e.my_membership?.[0]?.role ?? null,
     joinable: false,
@@ -45,7 +45,7 @@ export default function EventsTab() {
     .filter((e) => !isLiveOrUpcoming(e))
     .sort((a, b) => b.starts_at.localeCompare(a.starts_at))
     .map(toRow);
-  const open: Row[] = (publics.data ?? [])
+  const open: EventRow[] = (publics.data ?? [])
     .filter((e) => !myIds.has(e.id))
     .map((e) => ({ event: e, role: null, joinable: true }));
 
@@ -110,8 +110,8 @@ export default function EventsTab() {
 
   return (
     <Screen padded={false}>
-      <SectionList<Row, Section>
-        sections={sections}
+      <SectionList<EventRow, Section>
+        sections={nothingAtAll ? [] : sections}
         keyExtractor={(item) => `${item.joinable ? 'public' : 'mine'}:${item.event.id}`}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}
         refreshing={refreshing}
