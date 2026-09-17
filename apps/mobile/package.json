@@ -62,7 +62,8 @@
     "lint": "expo lint",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --check ."
+    "format": "prettier --check .",
+    "assets:placeholder": "python3 scripts/make-placeholder-icons.py"
   },
   "private": true,
   "jest": {
