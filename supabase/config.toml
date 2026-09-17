@@ -1,0 +1,67 @@
+# Supabase CLI project config. `supabase start` uses this for the local stack;
+# `supabase link` + `supabase db push` / `supabase functions deploy` for remote.
+project_id = "dram"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+extra_search_path = ["public", "extensions"]
+max_rows = 200
+
+[db]
+port = 54322
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed/*.sql"]
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "dram://auth/callback"
+additional_redirect_urls = ["dram://auth/callback", "exp://127.0.0.1:8081/--/auth/callback"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+minimum_password_length = 12
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+# The OTP template must include {{ .Token }} so the 6-digit code flow works.
+otp_length = 6
+otp_expiry = 600
+
+[auth.external.apple]
+enabled = true
+client_id = "env(APPLE_CLIENT_ID)"
+secret = "env(APPLE_SECRET)"
+
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_CLIENT_ID)"
+secret = "env(GOOGLE_SECRET)"
+skip_nonce_check = true
+
+[edge_runtime]
+enabled = true
+policy = "per_worker"
+
+[functions.identify-label]
+verify_jwt = true
+entrypoint = "./functions/identify-label/index.ts"
+
+[functions.send-push]
+# Called by a database webhook with the service key, not by users.
+verify_jwt = false
+entrypoint = "./functions/send-push/index.ts"

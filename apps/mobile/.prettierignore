@@ -1,0 +1,4 @@
+node_modules
+.expo
+dist
+src/lib/database.types.ts
