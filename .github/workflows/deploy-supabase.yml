@@ -1,0 +1,159 @@
+name: Deploy Supabase
+
+# Manual: Actions → Deploy Supabase → Run workflow. Safe to re-run; every step
+# is idempotent (the catalog seed is skipped once the table has rows).
+#
+# Repository secrets required:
+#   SUPABASE_ACCESS_TOKEN  personal access token (sbp_...)
+#   SUPABASE_DB_PASSWORD   the project's database password
+#   SUPABASE_PROJECT_REF   the short project id from the dashboard URL
+#   ANTHROPIC_API_KEY      for the identify-label edge function
+
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: "Seed flavor tags and the whiskey catalog (catalog is skipped if it already has rows)"
+        type: boolean
+        default: true
+      functions:
+        description: "Deploy edge functions, set their secrets, and wire the push webhook"
+        type: boolean
+        default: true
+      configure_auth:
+        description: "Apply auth settings: redirect URLs and the 6-digit email code template"
+        type: boolean
+        default: true
+
+concurrency:
+  group: deploy-supabase
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Migrate, seed, deploy functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+    defaults:
+      run:
+        working-directory: supabase
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD SUPABASE_PROJECT_REF; do
+            [ -n "${!v}" ] || { echo "::error::Missing repository secret $v"; exit 1; }
+          done
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Push migrations
+        run: supabase db push
+
+      - name: Seed
+        if: inputs.seed
+        run: |
+          scripts/mgmt-sql.sh "$SUPABASE_PROJECT_REF" seed/00_flavor_tags.sql > /dev/null
+          echo "flavor tags: ok"
+          count=$(scripts/mgmt-sql.sh "$SUPABASE_PROJECT_REF" -c "select count(*)::int as n from public.whiskeys" | jq -r '.[0].n')
+          if [ "$count" = "0" ]; then
+            scripts/mgmt-sql.sh "$SUPABASE_PROJECT_REF" seed/catalog.sql > /dev/null
+            echo "catalog: seeded"
+          else
+            echo "catalog: already has $count rows, skipping"
+          fi
+
+      - name: Fetch API keys
+        id: keys
+        run: |
+          json=$(curl -sS --fail-with-body "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/api-keys?reveal=true" \
+                   -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
+          anon=$(echo "$json" | jq -r '.[] | select(.name == "anon") | .api_key')
+          service=$(echo "$json" | jq -r '.[] | select(.name == "service_role") | .api_key')
+          echo "::add-mask::$service"
+          echo "anon=$anon" >> "$GITHUB_OUTPUT"
+          echo "service=$service" >> "$GITHUB_OUTPUT"
+
+      - name: Edge function secrets
+        if: inputs.functions
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          [ -n "$ANTHROPIC_API_KEY" ] || { echo "::error::Missing repository secret ANTHROPIC_API_KEY"; exit 1; }
+          supabase secrets set ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY"
+
+      - name: Deploy edge functions
+        if: inputs.functions
+        run: |
+          supabase functions deploy identify-label
+          supabase functions deploy send-push --no-verify-jwt
+
+      - name: Push-notification webhook (notifications → send-push)
+        if: inputs.functions
+        continue-on-error: true
+        env:
+          SERVICE_KEY: ${{ steps.keys.outputs.service }}
+        run: |
+          cat > /tmp/webhook.sql <<SQL
+          create extension if not exists pg_net with schema extensions;
+          drop trigger if exists notifications_send_push on public.notifications;
+          create trigger notifications_send_push
+            after insert on public.notifications for each row
+            execute function supabase_functions.http_request(
+              'https://$SUPABASE_PROJECT_REF.supabase.co/functions/v1/send-push',
+              'POST',
+              '{"Content-Type":"application/json","Authorization":"Bearer $SERVICE_KEY"}',
+              '{}',
+              '5000'
+            );
+          SQL
+          if scripts/mgmt-sql.sh "$SUPABASE_PROJECT_REF" /tmp/webhook.sql > /dev/null; then
+            echo "webhook trigger: ok"
+          else
+            echo "::warning::Could not create the webhook trigger. Enable Database Webhooks once in the dashboard (Database → Webhooks) and re-run this workflow."
+            exit 1
+          fi
+
+      - name: Configure auth (redirect URLs, email code template)
+        if: inputs.configure_auth
+        continue-on-error: true
+        run: |
+          jq -n '{
+            site_url: "dram://auth/callback",
+            uri_allow_list: "dram://auth/callback,exp://127.0.0.1:8081/--/auth/callback,exp://localhost:8081/--/auth/callback",
+            mailer_otp_length: 6,
+            mailer_otp_exp: 600,
+            mailer_subjects_magic_link: "Your Dram sign-in code",
+            mailer_templates_magic_link_content: "<h2>Sign in to Dram</h2><p>Your code is <strong>{{ .Token }}</strong>. It expires in 10 minutes.</p><p>Or <a href=\"{{ .ConfirmationURL }}\">tap here to sign in</a>.</p>"
+          }' | curl -sS --fail-with-body -X PATCH "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
+                 -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data-binary @- > /dev/null
+          echo "auth config: ok"
+
+      - name: Summary
+        env:
+          ANON_KEY: ${{ steps.keys.outputs.anon }}
+        run: |
+          {
+            echo "## Dram — Supabase deploy"
+            echo
+            echo "Project URL: \`https://$SUPABASE_PROJECT_REF.supabase.co\`"
+            echo
+            echo "Copy these into \`apps/mobile/.env\` (the anon key ships inside the app; row-level security protects the data):"
+            echo
+            echo '```'
+            echo "EXPO_PUBLIC_SUPABASE_URL=https://$SUPABASE_PROJECT_REF.supabase.co"
+            echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo '```'
+            echo
+            echo "Still manual: Apple and Google sign-in providers (Authentication → Providers) and making yourself a moderator (\`update public.profiles set is_moderator = true where username = '...'\`)."
+          } >> "$GITHUB_STEP_SUMMARY"

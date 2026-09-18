@@ -42,29 +42,40 @@ python3 scripts/gen-types.py dram_check ../apps/mobile/src/lib/database.types.ts
 
 ## 2. Provisioning a Supabase project (staging, then production)
 
-1. Create the project in the Supabase dashboard (region close to your users). Note the URL, anon key, service key.
-2. Link and push the schema:
+Create the project in the Supabase dashboard (region close to your users), then pick one of two paths.
+
+### Option A — the Deploy Supabase workflow (recommended)
+
+1. In the GitHub repo: Settings → Secrets and variables → Actions, add `SUPABASE_ACCESS_TOKEN` (personal access token, `sbp_…`), `SUPABASE_DB_PASSWORD`, `SUPABASE_PROJECT_REF`, and `ANTHROPIC_API_KEY`.
+2. Actions → **Deploy Supabase** → Run workflow. It links the project, pushes every migration, seeds the flavor wheel and the catalog (once), sets the Anthropic key as a function secret, deploys both edge functions, creates the `notifications → send-push` webhook trigger, and applies the auth settings (deep-link redirect URLs, 6-digit email code template).
+3. The run's summary shows the project URL and anon key to paste into `apps/mobile/.env`.
+4. Still manual: Apple and Google providers (Authentication → Providers) and promoting yourself to moderator.
+
+### Option B — by hand
+
+1. Link and push the schema:
    ```bash
    cd supabase
    supabase link --project-ref <ref>
    supabase db push                       # applies migrations in order
-   psql "$SUPABASE_DB_URL" -f seed/00_flavor_tags.sql -f seed/catalog.sql   # one-time seed
+   scripts/mgmt-sql.sh <ref> seed/00_flavor_tags.sql && scripts/mgmt-sql.sh <ref> seed/catalog.sql   # one-time seed
    ```
-3. **Auth providers** (Dashboard → Authentication → Providers):
+2. **Auth providers** (Dashboard → Authentication → Providers):
    - Email: enable; edit the *Magic Link* template to include `{{ .Token }}` so the 6-digit code flow works; set OTP length 6.
    - Apple: Services ID + key (Sign in with Apple), bundle id `app.dram.mobile`.
    - Google: OAuth client (iOS + Android + web client for the PKCE flow).
-   - URL configuration: add `dram://auth/callback` and the `exp://…/--/auth/callback` dev URL to redirect allow-list.
-4. **Storage** buckets are created by migration `0700`. Confirm they exist and that `tasting-photos` / `label-scans` are private.
-5. **Secrets & functions**:
+   - URL configuration: add `dram://auth/callback` and the `exp://…/--/auth/callback` dev URL to the redirect allow-list.
+3. **Storage** buckets are created by migration `0700`. Confirm they exist and that `tasting-photos` / `label-scans` are private.
+4. **Secrets & functions**:
    ```bash
-   supabase secrets set ANTHROPIC_API_KEY=sk-ant-... WEBHOOK_SECRET=$(openssl rand -hex 24)
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
    supabase functions deploy identify-label
    supabase functions deploy send-push --no-verify-jwt
    ```
-6. **Database webhook** (Dashboard → Database → Webhooks): table `public.notifications`, event INSERT, type *Supabase Edge Function* → `send-push`, header `Authorization: Bearer <WEBHOOK_SECRET>`.
-7. **Moderators**: `update public.profiles set is_moderator = true where username = 'you';`
-8. Repeat for production with its own project; never point the app at both.
+5. **Database webhook** (Dashboard → Database → Webhooks): table `public.notifications`, event INSERT, type *Supabase Edge Function* → `send-push`, header `Authorization: Bearer <service_role key>` (or a custom value you also set as the `WEBHOOK_SECRET` function secret).
+6. **Moderators**: `update public.profiles set is_moderator = true where username = 'you';`
+
+Repeat for production with its own project; never point the app at both.
 
 ## 3. Building and shipping the app (EAS)
 
@@ -107,10 +118,10 @@ Anything touching native modules (new Expo package, permission strings, icons) n
 | `mobile` | every push to `main` and every PR | `npm ci`, `tsc --noEmit`, `jest`, `expo lint` |
 | `database` | every push to `main` and every PR | Spins up Postgres 16 service, runs `scripts/local-check.sh` (all migrations + seed + smoke tests) |
 | `functions` | every push to `main` and every PR | `deno check` both edge functions |
-| `deploy-db` (manual / tag) | `workflow_dispatch` | `supabase db push` + `functions deploy` with `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` secrets |
+| `deploy-supabase` (`.github/workflows/deploy-supabase.yml`) | `workflow_dispatch` | link, `db push`, one-time seed, function secrets + deploy, webhook trigger, auth config; prints URL + anon key |
 | `eas-build` (manual / tag `mobile-v*`) | `workflow_dispatch` | `eas build --non-interactive` with `EXPO_TOKEN` |
 
-Release flow: merge to `main` → CI green → `workflow_dispatch` deploy-db to staging → QA on a preview build → deploy-db to prod → `eas build --profile production` → submit.
+Release flow: merge to `main` → CI green → run Deploy Supabase against staging → QA on a preview build → run it against prod → `eas build --profile production` → submit.
 
 ## 5. Migrations policy
 
