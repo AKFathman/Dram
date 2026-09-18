@@ -48,7 +48,7 @@ Config that differs per env is injected as `EXPO_PUBLIC_SUPABASE_URL` / `EXPO_PU
 ## 4. Repository layout
 
 ```
-dram/
+(repo root)
   apps/mobile/            Expo app
     src/app/              routes (expo-router)
     src/components/       UI primitives + feature components

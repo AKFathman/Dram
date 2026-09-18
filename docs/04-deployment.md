@@ -11,7 +11,7 @@
 
 ```bash
 # 1) Database — full Supabase stack
-cd dram/supabase
+cd supabase
 supabase start                 # Postgres, Auth, Storage, Studio on http://localhost:54323
 supabase db reset              # applies migrations/*.sql then seed/*.sql
 psql "$(supabase status -o env | grep DB_URL | cut -d= -f2-)" -f tests/smoke.sql
@@ -45,7 +45,7 @@ python3 scripts/gen-types.py dram_check ../apps/mobile/src/lib/database.types.ts
 1. Create the project in the Supabase dashboard (region close to your users). Note the URL, anon key, service key.
 2. Link and push the schema:
    ```bash
-   cd dram/supabase
+   cd supabase
    supabase link --project-ref <ref>
    supabase db push                       # applies migrations in order
    psql "$SUPABASE_DB_URL" -f seed/00_flavor_tags.sql -f seed/catalog.sql   # one-time seed
@@ -69,7 +69,7 @@ python3 scripts/gen-types.py dram_check ../apps/mobile/src/lib/database.types.ts
 ## 3. Building and shipping the app (EAS)
 
 ```bash
-cd dram/apps/mobile
+cd apps/mobile
 eas login && eas init                    # writes the projectId into app.json (replace REPLACE_WITH_EAS_PROJECT_ID)
 eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value https://<ref>.supabase.co
 eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value <anon>
@@ -100,13 +100,13 @@ Anything touching native modules (new Expo package, permission strings, icons) n
 - Account deletion is required by both stores — `Settings → Delete account` calls `delete_my_account()`.
 - Privacy policy + terms URLs (placeholders `https://dram.app/privacy`, `/terms` in Settings).
 
-## 4. CI/CD (GitHub Actions — `.github/workflows/dram-ci.yml`)
+## 4. CI/CD (GitHub Actions — `.github/workflows/ci.yml`)
 
 | Job | Trigger | What it does |
 |---|---|---|
-| `mobile` | push / PR touching `dram/apps/mobile/**` | `npm ci`, `tsc --noEmit`, `jest`, `expo lint` |
-| `database` | push / PR touching `dram/supabase/**` | Spins up Postgres 16 service, runs `scripts/local-check.sh` (all migrations + seed + smoke tests) |
-| `functions` | push / PR touching `dram/supabase/functions/**` | `deno check` both edge functions |
+| `mobile` | every push to `main` and every PR | `npm ci`, `tsc --noEmit`, `jest`, `expo lint` |
+| `database` | every push to `main` and every PR | Spins up Postgres 16 service, runs `scripts/local-check.sh` (all migrations + seed + smoke tests) |
+| `functions` | every push to `main` and every PR | `deno check` both edge functions |
 | `deploy-db` (manual / tag) | `workflow_dispatch` | `supabase db push` + `functions deploy` with `SUPABASE_ACCESS_TOKEN` / `SUPABASE_DB_PASSWORD` secrets |
 | `eas-build` (manual / tag `mobile-v*`) | `workflow_dispatch` | `eas build --non-interactive` with `EXPO_TOKEN` |
 
