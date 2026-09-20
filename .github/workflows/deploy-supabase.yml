@@ -8,6 +8,18 @@ name: Deploy Supabase
 #   SUPABASE_DB_PASSWORD   the project's database password
 #   SUPABASE_PROJECT_REF   the short project id from the dashboard URL
 #   ANTHROPIC_API_KEY      for the identify-label edge function
+#
+# Optional, and the only way to get a 6-digit code into a sign-in email: a free
+# Supabase project using the built-in mailer is not allowed to change its email
+# templates, so its emails carry a link and no code. Setting these switches the
+# project to your own SMTP provider, which lifts that restriction (and the
+# built-in mailer's team-addresses-only rule and hourly cap along with it):
+#   SMTP_HOST              e.g. smtp.resend.com
+#   SMTP_PASS              the provider's API key or password
+#   SMTP_SENDER_EMAIL      the From address, e.g. onboarding@resend.dev
+#   SMTP_USER              optional, defaults to "resend"
+#   SMTP_PORT              optional, defaults to 465
+#   SMTP_SENDER_NAME       optional, defaults to "Dram"
 
 on:
   workflow_dispatch:
@@ -38,6 +50,12 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+      SMTP_SENDER_EMAIL: ${{ secrets.SMTP_SENDER_EMAIL }}
+      SMTP_SENDER_NAME: ${{ secrets.SMTP_SENDER_NAME }}
     defaults:
       run:
         working-directory: supabase
@@ -155,6 +173,7 @@ jobs:
               return 0
             fi
             echo "::warning::auth config [$name] rejected: $(cat "$TMP/resp.json")"
+            cat "$TMP/resp.json" >> "$TMP/why.txt"
             for key in $(jq -r 'keys[]' "$TMP/$name.json"); do
               jq --arg k "$key" '{($k): .[$k]}' "$TMP/$name.json" > "$TMP/one.json"
               if try_patch "$TMP/one.json"; then
@@ -165,6 +184,25 @@ jobs:
               fi
             done
           }
+
+          # SMTP comes first: on a free project the built-in mailer forbids template
+          # changes outright, so the groups below only stick once this has run.
+          if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_PASS" ]; then
+            jq -n \
+              --arg host "$SMTP_HOST" \
+              --arg port "${SMTP_PORT:-465}" \
+              --arg user "${SMTP_USER:-resend}" \
+              --arg pass "$SMTP_PASS" \
+              --arg from "$SMTP_SENDER_EMAIL" \
+              --arg name "${SMTP_SENDER_NAME:-Dram}" \
+              '{
+                smtp_host: $host, smtp_port: $port, smtp_user: $user, smtp_pass: $pass,
+                smtp_admin_email: $from, smtp_sender_name: $name, smtp_max_frequency: 10
+              }' > "$TMP/smtp.json"
+            patch_group smtp
+          else
+            echo "no SMTP_HOST/SMTP_PASS secrets — leaving the built-in mailer in place"
+          fi
 
           # A first-time user hits the CONFIRMATION template, not the magic-link
           # one, so both must carry {{ .Token }} or the email has no code in it.
@@ -184,7 +222,7 @@ jobs:
           }' > "$TMP/otp.json"
           jq -n '{
             site_url: "dram://auth/callback",
-            uri_allow_list: "dram://auth/callback,exp://127.0.0.1:8081/--/auth/callback,exp://localhost:8081/--/auth/callback"
+            uri_allow_list: "dram://auth/callback,exp://**"
           }' > "$TMP/redirect.json"
 
           patch_group confirmation
@@ -207,7 +245,11 @@ jobs:
           done
 
           if [ -n "$missing" ]; then
-            echo "::error::sign-in emails will arrive without a code —$missing has no {{ .Token }}"
+            if grep -qi 'custom SMTP\|free tier' "$TMP/why.txt" 2>/dev/null; then
+              echo "::error::This project may not change its email templates while it uses Supabase's built-in mailer, so sign-in emails carry a link but no 6-digit code. Tapping the link still signs you in. To get the code, set the SMTP_* repository secrets documented at the top of this workflow and re-run it."
+            else
+              echo "::error::sign-in emails will arrive without a code —$missing has no {{ .Token }}"
+            fi
             exit 1
           fi
           echo "auth config: email codes confirmed"
