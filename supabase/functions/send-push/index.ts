@@ -1,10 +1,9 @@
 /**
  * send-push — fan a `notifications` row out to the user's devices via Expo Push.
  *
- * Wire it up as a Database Webhook (Dashboard → Database → Webhooks):
- *   table: public.notifications, event: INSERT, type: Supabase Edge Function,
- *   HTTP headers: Authorization: Bearer <WEBHOOK_SECRET>
- * and set the secret with `supabase secrets set WEBHOOK_SECRET=...`.
+ * Wired up by the Deploy Supabase workflow as a trigger on public.notifications
+ * that POSTs here with `Authorization: Bearer <service_role key>`. A custom
+ * WEBHOOK_SECRET (supabase secrets set) is accepted as well.
  *
  * Uses the service role (injected as SUPABASE_SERVICE_ROLE_KEY) because it
  * reads other users' push tokens.
@@ -53,8 +52,9 @@ async function describe(n: NotificationRow): Promise<{ title: string; body: stri
 }
 
 Deno.serve(async (req) => {
-  const secret = Deno.env.get('WEBHOOK_SECRET');
-  if (secret && req.headers.get('authorization') !== `Bearer ${secret}`) {
+  const accepted = [Deno.env.get('WEBHOOK_SECRET'), Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')].filter(Boolean);
+  const auth = req.headers.get('authorization') ?? '';
+  if (!accepted.some((s) => auth === `Bearer ${s}`)) {
     return new Response('unauthorized', { status: 401 });
   }
   const { record } = (await req.json()) as { record?: NotificationRow };

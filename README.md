@@ -3,6 +3,8 @@
 A mobile app for whiskey drinkers: log what you've tried in seconds, rank it Beli-style with quick "which did you prefer?" comparisons, go deep with notes and an expert scoresheet when you want to, discover through friends, and keep track of every pour at a tasting event.
 
 > Status: **M0 — foundation built, not yet deployed.** See [`docs/05-roadmap.md`](docs/05-roadmap.md).
+>
+> Originally scaffolded inside the GeoMatch repository; the history was extracted with `git subtree split` when it moved here.
 
 ## Documents
 
