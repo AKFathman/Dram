@@ -107,7 +107,10 @@ export default function Settings() {
       const permission = await Notifications.requestPermissionsAsync();
       if (!permission.granted) throw new Error('Notifications are off. Turn them on in your device settings.');
       const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined;
-      if (!projectId) throw new Error('This build has no EAS project id, so push cannot be set up yet.');
+      // A fresh clone still carries the placeholder until `eas init` runs.
+      if (!projectId || projectId.startsWith('REPLACE_WITH')) {
+        throw new Error('Push needs a development build. Run `eas init`, then build and install Dram on this device.');
+      }
       const token = await Notifications.getExpoPushTokenAsync({ projectId });
       await registerPushToken(token.data, pushPlatform());
       return token.data;

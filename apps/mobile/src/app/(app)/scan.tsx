@@ -28,7 +28,10 @@ export default function ScanScreen() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<IdentifyResult | null>(null);
 
-  const withEvent = (params: Record<string, string>) => ({ ...params, ...(eventId ? { eventId } : {}) });
+  const withEvent = <T extends Record<string, string>>(params: T) => ({
+    ...params,
+    ...(eventId ? { eventId } : {}),
+  });
 
   const run = async (base64: string) => {
     setBusy(true);

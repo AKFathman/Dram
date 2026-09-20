@@ -1,11 +1,11 @@
 import type { Session, User } from '@supabase/supabase-js';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { APPLE_UNAVAILABLE, AppleAuth } from './apple-auth';
 import { queryClient } from './query';
 import { supabase } from './supabase';
 import type { Tables } from './database.types';
@@ -88,13 +88,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
 
       async signInWithApple() {
-        if (Platform.OS !== 'ios') throw new Error('Sign in with Apple is only available on iOS.');
+        if (Platform.OS !== 'ios' || !AppleAuth) throw new Error(APPLE_UNAVAILABLE);
         const rawNonce = Crypto.randomUUID();
         const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
-        const credential = await AppleAuthentication.signInAsync({
+        const credential = await AppleAuth.signInAsync({
           requestedScopes: [
-            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+            AppleAuth.AppleAuthenticationScope.FULL_NAME,
+            AppleAuth.AppleAuthenticationScope.EMAIL,
           ],
           nonce: hashedNonce,
         });
