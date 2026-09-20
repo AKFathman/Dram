@@ -139,7 +139,7 @@ export default function WhiskeyDetailScreen() {
                   title="Add notes"
                   variant="secondary"
                   style={{ flex: 1 }}
-                  onPress={() => router.push({ pathname: '/tasting/new', params: { whiskeyId: id } })}
+                  onPress={() => router.push({ pathname: '/tasting/[id]', params: { id: 'new', whiskeyId: id } })}
                 />
               </Row>
             </>

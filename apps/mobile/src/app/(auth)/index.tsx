@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as AppleAuthentication from 'expo-apple-authentication';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Platform, View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { Button, Screen, Spacer, Text } from '@/components/ui';
+import { AppleAuth, useAppleAuthAvailable } from '@/lib/apple-auth';
 import { useAuth } from '@/lib/auth';
 import { spacing, useTheme } from '@/theme';
 
@@ -13,6 +13,8 @@ export default function Welcome() {
   const router = useRouter();
   const { signInWithApple, signInWithGoogle } = useAuth();
   const [busy, setBusy] = useState<'apple' | 'google' | null>(null);
+  // Only true on an iPhone whose build actually carries the native module.
+  const appleReady = useAppleAuthAvailable();
 
   const run = async (which: 'apple' | 'google') => {
     setBusy(which);
@@ -49,13 +51,13 @@ export default function Welcome() {
       </View>
 
       <View style={{ gap: spacing.md, paddingBottom: spacing.lg }}>
-        {Platform.OS === 'ios' ? (
-          <AppleAuthentication.AppleAuthenticationButton
-            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+        {appleReady && AppleAuth ? (
+          <AppleAuth.AppleAuthenticationButton
+            buttonType={AppleAuth.AppleAuthenticationButtonType.SIGN_IN}
             buttonStyle={
               t.scheme === 'dark'
-                ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-                : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                ? AppleAuth.AppleAuthenticationButtonStyle.WHITE
+                : AppleAuth.AppleAuthenticationButtonStyle.BLACK
             }
             cornerRadius={12}
             style={{ height: 50 }}
