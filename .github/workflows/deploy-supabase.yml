@@ -124,26 +124,93 @@ jobs:
             exit 1
           fi
 
-      # A first-time user hits the CONFIRMATION template, not the magic-link one,
-      # so both must carry {{ .Token }} or the email arrives with no code in it.
+      # The Management API rejects the whole payload if any one field is bad, and
+      # a rejection here used to be invisible: the body went to /dev/null and
+      # continue-on-error hid the exit code, so the job reported success while
+      # none of the settings landed — which is why sign-in emails arrived with no
+      # code in them. Patch in groups, fall back to one field at a time, keep the
+      # error body, and read the config back to prove the templates stuck.
       - name: Configure auth (redirect URLs, email code templates)
         if: inputs.configure_auth
         continue-on-error: true
+        env:
+          TMP: ${{ runner.temp }}
         run: |
+          api="https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth"
+          auth_header="Authorization: Bearer $SUPABASE_ACCESS_TOKEN"
+          failed=
+
+          try_patch() {
+            curl -sS --fail-with-body -X PATCH "$api" \
+              -H "$auth_header" -H "Content-Type: application/json" \
+              --data-binary @"$1" -o "$TMP/resp.json"
+          }
+
+          # Groups are applied in priority order, so a later rejection cannot
+          # undo an earlier success.
+          patch_group() {
+            name=$1
+            if try_patch "$TMP/$name.json"; then
+              echo "auth config [$name]: ok"
+              return 0
+            fi
+            echo "::warning::auth config [$name] rejected: $(cat "$TMP/resp.json")"
+            for key in $(jq -r 'keys[]' "$TMP/$name.json"); do
+              jq --arg k "$key" '{($k): .[$k]}' "$TMP/$name.json" > "$TMP/one.json"
+              if try_patch "$TMP/one.json"; then
+                echo "auth config [$key]: ok"
+              else
+                echo "::warning::auth config [$key] rejected: $(cat "$TMP/resp.json")"
+                failed="$failed $key"
+              fi
+            done
+          }
+
+          # A first-time user hits the CONFIRMATION template, not the magic-link
+          # one, so both must carry {{ .Token }} or the email has no code in it.
           jq -n '{
-            site_url: "dram://auth/callback",
-            uri_allow_list: "dram://auth/callback,exp://127.0.0.1:8081/--/auth/callback,exp://localhost:8081/--/auth/callback",
+            mailer_subjects_confirmation: "Your Dram sign-in code",
+            mailer_templates_confirmation_content: "<h2>Welcome to Dram</h2><p>Your code is <strong>{{ .Token }}</strong>. It expires in 10 minutes.</p><p>Or <a href=\"{{ .ConfirmationURL }}\">tap here to finish signing up</a>.</p>"
+          }' > "$TMP/confirmation.json"
+          jq -n '{
+            mailer_subjects_magic_link: "Your Dram sign-in code",
+            mailer_templates_magic_link_content: "<h2>Sign in to Dram</h2><p>Your code is <strong>{{ .Token }}</strong>. It expires in 10 minutes.</p><p>Or <a href=\"{{ .ConfirmationURL }}\">tap here to sign in</a>.</p>"
+          }' > "$TMP/magic_link.json"
+          jq -n '{
             mailer_otp_length: 6,
             mailer_otp_exp: 600,
             external_email_enabled: true,
-            mailer_autoconfirm: false,
-            mailer_subjects_magic_link: "Your Dram sign-in code",
-            mailer_templates_magic_link_content: "<h2>Sign in to Dram</h2><p>Your code is <strong>{{ .Token }}</strong>. It expires in 10 minutes.</p><p>Or <a href=\"{{ .ConfirmationURL }}\">tap here to sign in</a>.</p>",
-            mailer_subjects_confirmation: "Your Dram sign-in code",
-            mailer_templates_confirmation_content: "<h2>Welcome to Dram</h2><p>Your code is <strong>{{ .Token }}</strong>. It expires in 10 minutes.</p><p>Or <a href=\"{{ .ConfirmationURL }}\">tap here to finish signing up</a>.</p>"
-          }' | curl -sS --fail-with-body -X PATCH "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
-                 -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data-binary @- > /dev/null
-          echo "auth config: ok"
+            mailer_autoconfirm: false
+          }' > "$TMP/otp.json"
+          jq -n '{
+            site_url: "dram://auth/callback",
+            uri_allow_list: "dram://auth/callback,exp://127.0.0.1:8081/--/auth/callback,exp://localhost:8081/--/auth/callback"
+          }' > "$TMP/redirect.json"
+
+          patch_group confirmation
+          patch_group magic_link
+          patch_group otp
+          patch_group redirect
+
+          [ -z "$failed" ] || echo "::warning::fields the API would not accept:$failed"
+
+          # The only check that has to pass: does a sign-in email carry a code?
+          # Read the settings back rather than trusting the PATCH responses.
+          curl -sS --fail-with-body "$api" -H "$auth_header" -o "$TMP/current.json"
+          missing=
+          for f in mailer_templates_confirmation_content mailer_templates_magic_link_content; do
+            if jq -e --arg f "$f" '(.[$f] // "") | contains("{{ .Token }}")' "$TMP/current.json" > /dev/null; then
+              echo "$f: contains the 6-digit code"
+            else
+              missing="$missing $f"
+            fi
+          done
+
+          if [ -n "$missing" ]; then
+            echo "::error::sign-in emails will arrive without a code —$missing has no {{ .Token }}"
+            exit 1
+          fi
+          echo "auth config: email codes confirmed"
 
       - name: Summary
         env:
