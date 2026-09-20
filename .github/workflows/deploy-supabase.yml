@@ -124,7 +124,9 @@ jobs:
             exit 1
           fi
 
-      - name: Configure auth (redirect URLs, email code template)
+      # A first-time user hits the CONFIRMATION template, not the magic-link one,
+      # so both must carry {{ .Token }} or the email arrives with no code in it.
+      - name: Configure auth (redirect URLs, email code templates)
         if: inputs.configure_auth
         continue-on-error: true
         run: |
@@ -133,8 +135,12 @@ jobs:
             uri_allow_list: "dram://auth/callback,exp://127.0.0.1:8081/--/auth/callback,exp://localhost:8081/--/auth/callback",
             mailer_otp_length: 6,
             mailer_otp_exp: 600,
+            external_email_enabled: true,
+            mailer_autoconfirm: false,
             mailer_subjects_magic_link: "Your Dram sign-in code",
-            mailer_templates_magic_link_content: "<h2>Sign in to Dram</h2><p>Your code is <strong>{{ .Token }}</strong>. It expires in 10 minutes.</p><p>Or <a href=\"{{ .ConfirmationURL }}\">tap here to sign in</a>.</p>"
+            mailer_templates_magic_link_content: "<h2>Sign in to Dram</h2><p>Your code is <strong>{{ .Token }}</strong>. It expires in 10 minutes.</p><p>Or <a href=\"{{ .ConfirmationURL }}\">tap here to sign in</a>.</p>",
+            mailer_subjects_confirmation: "Your Dram sign-in code",
+            mailer_templates_confirmation_content: "<h2>Welcome to Dram</h2><p>Your code is <strong>{{ .Token }}</strong>. It expires in 10 minutes.</p><p>Or <a href=\"{{ .ConfirmationURL }}\">tap here to finish signing up</a>.</p>"
           }' | curl -sS --fail-with-body -X PATCH "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth" \
                  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" -H "Content-Type: application/json" --data-binary @- > /dev/null
           echo "auth config: ok"
