@@ -1,0 +1,125 @@
+name: Deploy web
+
+# Publishes the Expo web export to GitHub Pages, so the app can be opened in a
+# browser without Expo Go or a device build.
+#
+# One-time setup: Settings → Pages → Source = "GitHub Actions".
+#
+# Reuses the secrets the Supabase deploy already needs — the anon key is read
+# from the Management API at build time rather than stored again:
+#   SUPABASE_ACCESS_TOKEN  personal access token (sbp_...)
+#   SUPABASE_PROJECT_REF   the short project id from the dashboard URL
+#
+# The anon key is compiled into the bundle, which is what it is designed for:
+# it identifies the project, and row-level security is what protects the data.
+# The service role key must never be built into a client.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than publishing a half-built site.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Export the web bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF; do
+            [ -n "${!v}" ] || { echo "::error::Missing repository secret $v"; exit 1; }
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+
+      - name: Build-time Supabase config
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          json=$(curl -sS --fail-with-body "https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/api-keys?reveal=true" \
+                   -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN")
+          anon=$(echo "$json" | jq -r '.[] | select(.name == "anon") | .api_key')
+          [ -n "$anon" ] && [ "$anon" != "null" ] || { echo "::error::No anon key came back for this project"; exit 1; }
+          {
+            echo "EXPO_PUBLIC_SUPABASE_URL=https://$SUPABASE_PROJECT_REF.supabase.co"
+            echo "EXPO_PUBLIC_SUPABASE_ANON_KEY=$anon"
+          } > .env
+
+      - name: Export
+        env:
+          # Pages serves the site from /<repo>/, so the bundle is built with
+          # that prefix. app.config.js applies it only when this is set.
+          DRAM_WEB_BASE_URL: /${{ github.event.repository.name }}
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          npx expo export --platform web --output-dir dist
+          # The export is a single-page bundle: routing happens in the browser,
+          # so every unknown path has to return the same HTML. Pages serves
+          # 404.html for those, so make it a copy of the entry point.
+          cp dist/index.html dist/404.html
+          # The Actions-based Pages deploy doesn't run Jekyll, but this costs
+          # nothing and keeps the _expo directory if Pages is ever switched
+          # back to serving from a branch, where Jekyll would skip it.
+          touch dist/.nojekyll
+
+      - name: Check the export looks right
+        run: |
+          test -f dist/index.html || { echo "::error::no index.html in the export"; exit 1; }
+          test -f dist/404.html   || { echo "::error::no 404.html fallback"; exit 1; }
+          grep -q "/${{ github.event.repository.name }}/_expo/" dist/index.html \
+            || { echo "::error::index.html does not reference the Pages base path"; exit 1; }
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/mobile/dist
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Summary
+        run: |
+          {
+            echo "## Dram on the web"
+            echo
+            echo "Open: ${{ steps.deployment.outputs.page_url }}"
+            echo
+            echo "If sign-in redirects fail, add that origin to the Supabase redirect allow list"
+            echo "(the Deploy Supabase workflow does this automatically)."
+          } >> "$GITHUB_STEP_SUMMARY"

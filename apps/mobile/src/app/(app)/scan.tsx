@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ScanResults } from '@/components/scan-results';
 import { Button, EmptyState, Loading, Screen, Spacer, Text } from '@/components/ui';
@@ -91,6 +91,24 @@ export default function ScanScreen() {
             })
           }
           onRetry={() => setResult(null)}
+        />
+      </Screen>
+    );
+  }
+
+  if (Platform.OS === 'web') {
+    return (
+      <Screen>
+        <EmptyState
+          icon="images-outline"
+          title="Upload a label photo"
+          body="Pick a photo of the front label and we'll work out what's in the glass. Live camera capture is on the phone app."
+          action={
+            <View style={{ gap: spacing.sm, alignSelf: 'stretch' }}>
+              <Button title="Choose a photo" loading={busy} onPress={fromLibrary} />
+              <Button title="Search by name instead" variant="ghost" onPress={() => router.replace('/log')} />
+            </View>
+          }
         />
       </Screen>
     );

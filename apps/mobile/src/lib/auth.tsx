@@ -32,6 +32,21 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | null>(null);
 
+/**
+ * Where Supabase should send a sign-in link or OAuth redirect back to.
+ *
+ * expo-linking's web build resolves the path against `window.location.origin`
+ * alone, which drops the sub-path a static host like GitHub Pages serves the
+ * app from — the link would come back to /auth/callback instead of
+ * /Dram/auth/callback and land on the host's 404. The bundle is compiled with
+ * its own base path, so use that on web and leave native to expo-linking.
+ */
+function authCallbackUrl(): string {
+  if (Platform.OS !== 'web') return Linking.createURL('/auth/callback');
+  const base = (process.env.EXPO_BASE_URL ?? '').replace(/\/$/, '');
+  return `${window.location.origin}${base}/auth/callback`;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -77,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async signInWithEmail(email) {
         const { error } = await supabase.auth.signInWithOtp({
           email,
-          options: { shouldCreateUser: true, emailRedirectTo: Linking.createURL('/auth/callback') },
+          options: { shouldCreateUser: true, emailRedirectTo: authCallbackUrl() },
         });
         if (error) throw error;
       },
@@ -92,10 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const rawNonce = Crypto.randomUUID();
         const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
         const credential = await AppleAuth.signInAsync({
-          requestedScopes: [
-            AppleAuth.AppleAuthenticationScope.FULL_NAME,
-            AppleAuth.AppleAuthenticationScope.EMAIL,
-          ],
+          requestedScopes: [AppleAuth.AppleAuthenticationScope.FULL_NAME, AppleAuth.AppleAuthenticationScope.EMAIL],
           nonce: hashedNonce,
         });
         if (!credential.identityToken) throw new Error('Apple did not return an identity token.');
@@ -108,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
 
       async signInWithGoogle() {
-        const redirectTo = Linking.createURL('/auth/callback');
+        const redirectTo = authCallbackUrl();
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo, skipBrowserRedirect: true },

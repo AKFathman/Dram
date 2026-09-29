@@ -2,7 +2,7 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Platform, StyleSheet, View } from 'react-native';
 
 import { Button, Card, Input, Loading, Row, Screen, Spacer, Text } from '@/components/ui';
 import { useJoinEvent } from '@/hooks';
@@ -34,6 +34,9 @@ export default function JoinEvent() {
       .replace(/[^A-Z0-9]/g, '')
       .slice(0, CODE_LENGTH),
   );
+  // expo-camera's web path can't be relied on for QR decoding, and the code
+  // field above already covers every case, so leave the scanner off in a browser.
+  const canScan = Platform.OS !== 'web';
   const [scanning, setScanning] = useState(false);
   /** Stops a QR code from firing `join` over and over while the camera keeps seeing it. */
   const busy = useRef(false);
@@ -103,42 +106,46 @@ export default function JoinEvent() {
       <Spacer h={spacing.md} />
       <Button title="Join" loading={join.isPending} disabled={code.length < CODE_LENGTH} onPress={() => submit(code)} />
 
-      <Spacer h={spacing.xl} />
-      <Text variant="h3">Or scan the QR code</Text>
-      <Spacer h={spacing.sm} />
-
-      {scanning && permission?.granted ? (
+      {!canScan ? null : (
         <>
-          <View style={[styles.camera, { borderColor: t.border }]}>
-            <CameraView
-              style={StyleSheet.absoluteFill}
-              facing="back"
-              barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-              onBarcodeScanned={onBarcodeScanned}
-            />
-            {join.isPending ? (
-              <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-                <Loading />
-              </View>
-            ) : null}
-          </View>
+          <Spacer h={spacing.xl} />
+          <Text variant="h3">Or scan the QR code</Text>
           <Spacer h={spacing.sm} />
-          <Button title="Stop scanning" variant="ghost" onPress={() => setScanning(false)} />
+
+          {scanning && permission?.granted ? (
+            <>
+              <View style={[styles.camera, { borderColor: t.border }]}>
+                <CameraView
+                  style={StyleSheet.absoluteFill}
+                  facing="back"
+                  barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                  onBarcodeScanned={onBarcodeScanned}
+                />
+                {join.isPending ? (
+                  <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+                    <Loading />
+                  </View>
+                ) : null}
+              </View>
+              <Spacer h={spacing.sm} />
+              <Button title="Stop scanning" variant="ghost" onPress={() => setScanning(false)} />
+            </>
+          ) : (
+            <Card>
+              <Row gap={spacing.md}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="h3">Scan to join</Text>
+                  <Text variant="small" muted>
+                    {permission && !permission.granted && !permission.canAskAgain
+                      ? 'Camera access is off. Turn it on in your device settings.'
+                      : 'Point your camera at the event QR code.'}
+                  </Text>
+                </View>
+                <Button title="Camera" variant="secondary" icon="qr-code-outline" onPress={startScanning} />
+              </Row>
+            </Card>
+          )}
         </>
-      ) : (
-        <Card>
-          <Row gap={spacing.md}>
-            <View style={{ flex: 1 }}>
-              <Text variant="h3">Scan to join</Text>
-              <Text variant="small" muted>
-                {permission && !permission.granted && !permission.canAskAgain
-                  ? 'Camera access is off. Turn it on in your device settings.'
-                  : 'Point your camera at the event QR code.'}
-              </Text>
-            </View>
-            <Button title="Camera" variant="secondary" icon="qr-code-outline" onPress={startScanning} />
-          </Row>
-        </Card>
       )}
     </Screen>
   );

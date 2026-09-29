@@ -7,6 +7,7 @@ import { Image } from 'expo-image';
 import React from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,6 +40,9 @@ export function Text({
 }
 
 // -------------------------------------------------------------- layout ------
+/** Width of the centred content column on web. Roughly a large phone. */
+const WEB_COLUMN = { width: '100%', maxWidth: 520, alignSelf: 'center' } as const;
+
 export function Screen({
   children,
   scroll,
@@ -56,16 +60,19 @@ export function Screen({
 }) {
   const t = useTheme();
   const pad = padded ? { paddingHorizontal: spacing.lg } : null;
+  // A browser window is many times wider than any phone. Without a cap, every
+  // row and button stretches across a desktop monitor; keep a phone-ish column.
+  const column = Platform.OS === 'web' ? WEB_COLUMN : null;
   return (
     <SafeAreaView edges={edges} style={[{ flex: 1, backgroundColor: t.bg }, style]}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[pad, { paddingBottom: spacing.xxl }, contentContainerStyle]}
+          contentContainerStyle={[pad, column, { paddingBottom: spacing.xxl }, contentContainerStyle]}
           keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>
       ) : (
-        <View style={[{ flex: 1 }, pad]}>{children}</View>
+        <View style={[{ flex: 1 }, column, pad]}>{children}</View>
       )}
     </SafeAreaView>
   );
