@@ -42,6 +42,22 @@ export type Notification = Tables<'notifications'> & {
   actor: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url'> | null;
 };
 export type FollowRow = Tables<'follows'>;
+export type ExpertRow = Functions<'list_experts'>['Returns'][number];
+export type ExpertPick = Functions<'expert_picks'>['Returns'][number];
+export type ExpertTake = Functions<'whiskey_expert_takes'>['Returns'][number];
+export type ExpertApplication = Tables<'expert_applications'>;
+export type ExpertQueueItem = ExpertApplication & {
+  applicant: Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url' | 'rankings_count' | 'followers_count'>;
+};
+/** One expert credited on a pick; `expert_picks` returns up to three. */
+export interface PickExpert {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  expert_title: string | null;
+  score: number;
+}
 
 export const CATEGORY_LABELS: Record<WhiskeyCategory, string> = {
   bourbon: 'Bourbon',
@@ -373,13 +389,14 @@ export async function tasteMatch(otherId: string): Promise<TasteMatch | null> {
 }
 
 export async function getFeed(
-  opts: { beforeId?: number | null; actor?: string | null; limit?: number } = {},
+  opts: { beforeId?: number | null; actor?: string | null; limit?: number; experts?: boolean } = {},
 ): Promise<FeedItem[]> {
   return unwrap(
     await supabase.rpc('feed', {
       p_limit: opts.limit ?? 30,
       p_before_id: opts.beforeId ?? undefined,
       p_actor: opts.actor ?? undefined,
+      p_experts_only: opts.experts ?? undefined,
     }),
   );
 }
@@ -429,6 +446,106 @@ export async function topWhiskeys(
 
 export async function friendsLoved(limit = 20): Promise<FriendsLovedRow[]> {
   return unwrap(await supabase.rpc('friends_loved', { p_limit: limit }));
+}
+
+// ---------------------------------------------------------------- experts ---
+export async function listExperts(
+  opts: { specialties?: WhiskeyCategory[]; query?: string; limit?: number; offset?: number } = {},
+): Promise<ExpertRow[]> {
+  return unwrap(
+    await supabase.rpc('list_experts', {
+      p_specialties: opts.specialties?.length ? opts.specialties : undefined,
+      p_query: opts.query?.trim() || undefined,
+      p_limit: opts.limit ?? 30,
+      p_offset: opts.offset ?? 0,
+    }),
+  );
+}
+
+export async function expertPicks(categories?: WhiskeyCategory[], limit = 20): Promise<ExpertPick[]> {
+  return unwrap(
+    await supabase.rpc('expert_picks', { p_categories: categories?.length ? categories : undefined, p_limit: limit }),
+  );
+}
+
+/** The experts credited on a pick, typed. */
+export function pickExperts(pick: Pick<ExpertPick, 'experts'>): PickExpert[] {
+  return Array.isArray(pick.experts) ? (pick.experts as unknown as PickExpert[]) : [];
+}
+
+export async function whiskeyExpertTakes(whiskeyId: string): Promise<ExpertTake[]> {
+  return unwrap(await supabase.rpc('whiskey_expert_takes', { p_whiskey_id: whiskeyId }));
+}
+
+/** My most recent application, whatever its status. */
+export async function myExpertApplication(): Promise<ExpertApplication | null> {
+  const user_id = await me();
+  return unwrap(
+    await supabase
+      .from('expert_applications')
+      .select('*')
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  );
+}
+
+export async function applyForExpert(input: {
+  title: string;
+  specialties: WhiskeyCategory[];
+  credentials: string;
+  links?: string[];
+}): Promise<ExpertApplication> {
+  return unwrap(
+    await supabase.rpc('apply_for_expert', {
+      p_title: input.title,
+      p_specialties: input.specialties,
+      p_credentials: input.credentials,
+      p_links: input.links ?? [],
+    }),
+  );
+}
+
+export async function withdrawExpertApplication() {
+  unwrap(await supabase.rpc('withdraw_expert_application'));
+}
+
+/** Moderators: applications waiting for review, oldest first. */
+export async function listExpertQueue(): Promise<ExpertQueueItem[]> {
+  return unwrap(
+    await supabase
+      .from('expert_applications')
+      .select(
+        '*, applicant:profiles!expert_applications_user_id_fkey(id, username, display_name, avatar_url, rankings_count, followers_count)',
+      )
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true }),
+  );
+}
+
+export async function reviewExpertApplication(input: {
+  id: string;
+  approve: boolean;
+  title?: string;
+  note?: string;
+}): Promise<ExpertApplication> {
+  return unwrap(
+    await supabase.rpc('review_expert_application', {
+      p_application: input.id,
+      p_approve: input.approve,
+      p_title: input.title?.trim() || undefined,
+      p_note: input.note?.trim() || undefined,
+    }),
+  );
+}
+
+export async function setExpert(userId: string, title: string, specialties: WhiskeyCategory[]): Promise<Profile> {
+  return unwrap(await supabase.rpc('set_expert', { p_user: userId, p_title: title, p_specialties: specialties }));
+}
+
+export async function revokeExpert(userId: string) {
+  unwrap(await supabase.rpc('revoke_expert', { p_user: userId }));
 }
 
 // ----------------------------------------------------------------- events ---

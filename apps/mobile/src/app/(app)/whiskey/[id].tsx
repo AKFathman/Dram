@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, Pressable, View } from 'react-native';
 
 import { DiscoverHorizontal } from '@/components/discover-horizontal';
+import { ExpertTakes } from '@/components/expert-takes';
 import {
   BottleImage,
   Button,
@@ -70,7 +71,8 @@ export default function WhiskeyDetailScreen() {
   const friends = extras.data?.friends ?? [];
   const flavors = extras.data?.flavors ?? [];
   const similar = extras.data?.similar ?? [];
-  const brandLine = [w.brand, w.distillery_name].filter(Boolean).join(' · ');
+  // Most single malts share a name with their distillery; say it once.
+  const brandLine = [...new Set([w.brand, w.distillery_name].filter(Boolean))].join(' · ');
 
   return (
     <>
@@ -151,6 +153,8 @@ export default function WhiskeyDetailScreen() {
             />
           )}
         </Card>
+
+        <ExpertTakes whiskeyId={id} />
 
         {friends.length ? (
           <>

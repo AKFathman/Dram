@@ -1,14 +1,13 @@
 /**
- * Small set of UI primitives so every screen looks the same. Nothing fancy:
- * plain React Native + theme tokens.
+ * Small set of UI primitives so every screen looks the same. Plain React
+ * Native + theme tokens; motion comes from ./motion.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text as RNText,
@@ -24,7 +23,9 @@ import {
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { TIER_META, formatScore, type Tier } from '@/lib/ranking';
-import { font, radius, spacing, useTheme } from '@/theme';
+import { elevation, font, radius, spacing, useTheme } from '@/theme';
+
+import { Appear, PressableScale } from './motion';
 
 // ---------------------------------------------------------------- text ------
 type Variant = keyof typeof font;
@@ -67,7 +68,7 @@ export function Screen({
     <SafeAreaView edges={edges} style={[{ flex: 1, backgroundColor: t.bg }, style]}>
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[pad, column, { paddingBottom: spacing.xxl }, contentContainerStyle]}
+          contentContainerStyle={[pad, column, { paddingBottom: spacing.xxxl }, contentContainerStyle]}
           keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>
@@ -78,22 +79,25 @@ export function Screen({
   );
 }
 
-export function Card({ style, ...rest }: ViewProps) {
+function useCardStyle(): ViewStyle {
   const t = useTheme();
+  return { backgroundColor: t.card, borderRadius: radius.lg, padding: spacing.lg, ...elevation(t) };
+}
+
+export function Card({ style, ...rest }: ViewProps) {
+  return <View {...rest} style={[useCardStyle(), style]} />;
+}
+
+/** A card you can tap. Dips slightly under the finger. */
+export function PressableCard({
+  style,
+  children,
+  ...rest
+}: Omit<PressableProps, 'style' | 'children'> & { style?: StyleProp<ViewStyle>; children?: React.ReactNode }) {
   return (
-    <View
-      {...rest}
-      style={[
-        {
-          backgroundColor: t.card,
-          borderColor: t.border,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderRadius: radius.lg,
-          padding: spacing.lg,
-        },
-        style,
-      ]}
-    />
+    <PressableScale accessibilityRole="button" scaleTo={0.985} {...rest} style={[useCardStyle(), style]}>
+      {children}
+    </PressableScale>
   );
 }
 
@@ -114,14 +118,17 @@ export function Divider() {
 export function Button({
   title,
   variant = 'primary',
+  size = 'md',
   loading,
   icon,
   style,
   disabled,
   ...rest
-}: PressableProps & {
+}: Omit<PressableProps, 'style' | 'children'> & {
   title: string;
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  /** `sm` fits inside a list row. */
+  size?: 'md' | 'sm';
   loading?: boolean;
   icon?: React.ComponentProps<typeof Ionicons>['name'];
   style?: StyleProp<ViewStyle>;
@@ -133,21 +140,29 @@ export function Button({
       : variant === 'danger'
         ? t.danger
         : variant === 'secondary'
-          ? t.accentSoft
+          ? t.surface
           : 'transparent';
-  const fg = variant === 'primary' || variant === 'danger' ? t.accentText : variant === 'secondary' ? t.text : t.accent;
+  const fg =
+    variant === 'primary'
+      ? t.accentText
+      : variant === 'danger'
+        ? t.onTier
+        : variant === 'secondary'
+          ? t.text
+          : t.accent;
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
+      accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
       disabled={disabled || loading}
       {...rest}
-      style={({ pressed }) => [
+      style={[
         {
           backgroundColor: bg,
-          opacity: disabled ? 0.5 : pressed ? 0.8 : 1,
-          paddingVertical: 14,
-          paddingHorizontal: spacing.xl,
-          borderRadius: radius.md,
+          opacity: disabled ? 0.45 : 1,
+          minHeight: size === 'sm' ? 36 : 52,
+          paddingHorizontal: size === 'sm' ? spacing.lg : spacing.xl,
+          borderRadius: size === 'sm' ? radius.pill : radius.md,
           flexDirection: 'row',
           justifyContent: 'center',
           alignItems: 'center',
@@ -159,11 +174,13 @@ export function Button({
         <ActivityIndicator color={fg} />
       ) : (
         <>
-          {icon ? <Ionicons name={icon} size={18} color={fg} /> : null}
-          <RNText style={[font.h3, { color: fg }]}>{title}</RNText>
+          {icon ? <Ionicons name={icon} size={size === 'sm' ? 15 : 18} color={fg} /> : null}
+          <RNText style={[size === 'sm' ? [font.small, { fontWeight: '700' as const }] : font.h3, { color: fg }]}>
+            {title}
+          </RNText>
         </>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -173,7 +190,7 @@ export function IconButton({
   color,
   style,
   ...rest
-}: PressableProps & {
+}: Omit<PressableProps, 'style' | 'children'> & {
   name: React.ComponentProps<typeof Ionicons>['name'];
   size?: number;
   color?: string;
@@ -181,50 +198,64 @@ export function IconButton({
 }) {
   const t = useTheme();
   return (
-    <Pressable
+    <PressableScale
       accessibilityRole="button"
       hitSlop={8}
+      scaleTo={0.88}
       {...rest}
-      style={({ pressed }) => [{ padding: spacing.sm, opacity: pressed ? 0.6 : 1 }, style]}>
+      style={[{ padding: spacing.sm }, style]}>
       <Ionicons name={name} size={size} color={color ?? t.text} />
-    </Pressable>
+    </PressableScale>
   );
 }
 
-export function Input({ style, ...rest }: TextInputProps) {
+/** The accent outline shown while a field has focus. */
+function useFocusRing() {
   const t = useTheme();
+  const [focused, setFocused] = useState(false);
+  return {
+    // The border is always there, just transparent, so focusing doesn't shift layout.
+    ring: { borderWidth: 1.5, borderColor: focused ? t.accent : 'transparent' },
+    handlers: { onFocus: () => setFocused(true), onBlur: () => setFocused(false) },
+  };
+}
+
+export function Input({ style, onFocus, onBlur, ...rest }: TextInputProps) {
+  const t = useTheme();
+  const { ring, handlers } = useFocusRing();
   return (
     <TextInput
       placeholderTextColor={t.muted}
       {...rest}
+      onFocus={(e) => {
+        handlers.onFocus();
+        onFocus?.(e);
+      }}
+      onBlur={(e) => {
+        handlers.onBlur();
+        onBlur?.(e);
+      }}
       style={[
         font.body,
         {
           color: t.text,
-          backgroundColor: t.card,
-          borderColor: t.border,
-          borderWidth: StyleSheet.hairlineWidth,
+          backgroundColor: t.surface,
           borderRadius: radius.md,
           paddingHorizontal: spacing.lg,
-          paddingVertical: 12,
+          paddingVertical: 14,
         },
+        ring,
         style,
       ]}
     />
   );
 }
 
-export function SearchBar(props: TextInputProps) {
+export function SearchBar({ onFocus, onBlur, ...props }: TextInputProps) {
   const t = useTheme();
+  const { ring, handlers } = useFocusRing();
   return (
-    <Row
-      style={{
-        backgroundColor: t.card,
-        borderRadius: radius.md,
-        paddingHorizontal: spacing.md,
-        borderColor: t.border,
-        borderWidth: StyleSheet.hairlineWidth,
-      }}>
+    <Row style={[{ backgroundColor: t.surface, borderRadius: radius.pill, paddingHorizontal: spacing.lg }, ring]}>
       <Ionicons name="search" size={18} color={t.muted} />
       <TextInput
         placeholderTextColor={t.muted}
@@ -232,6 +263,14 @@ export function SearchBar(props: TextInputProps) {
         autoCorrect={false}
         returnKeyType="search"
         {...props}
+        onFocus={(e) => {
+          handlers.onFocus();
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          handlers.onBlur();
+          onBlur?.(e);
+        }}
         style={[font.body, { flex: 1, color: t.text, paddingVertical: 12 }]}
       />
     </Row>
@@ -248,34 +287,35 @@ export function Chip({
   label: string;
   selected?: boolean;
   onPress?: () => void;
+  /** A tier or other semantic colour for the selected state; text uses onTier. */
   color?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const t = useTheme();
-  const c = color ?? t.accent;
+  const bg = selected ? (color ?? t.accent) : t.surface;
+  const fg = selected ? (color ? t.onTier : t.accentText) : t.text;
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
-      style={({ pressed }) => [
-        {
-          paddingHorizontal: spacing.md,
-          paddingVertical: 6,
-          borderRadius: radius.pill,
-          borderWidth: 1,
-          borderColor: selected ? c : t.border,
-          backgroundColor: selected ? c : t.card,
-          opacity: pressed ? 0.7 : 1,
-        },
+      scaleTo={0.94}
+      style={[
+        { paddingHorizontal: spacing.md + 2, paddingVertical: 8, borderRadius: radius.pill, backgroundColor: bg },
         style,
       ]}>
-      <RNText style={[font.small, { color: selected ? '#fff' : t.text, fontWeight: '600' }]}>{label}</RNText>
-    </Pressable>
+      <RNText style={[font.small, { color: fg, fontWeight: '600' }]}>{label}</RNText>
+    </PressableScale>
   );
 }
 
 // ------------------------------------------------------------- whiskey ------
+/** The tier colour a 0–10 score falls in; a quiet fill when there's no score. */
+export function scoreColor(t: ReturnType<typeof useTheme>, s: number | null): string {
+  if (s === null) return t.surface;
+  return s >= 8 ? t.tier.loved : s >= 6 ? t.tier.liked : s >= 4 ? t.tier.fine : t.tier.disliked;
+}
+
 export function ScoreBadge({
   score,
   size = 'md',
@@ -289,8 +329,7 @@ export function ScoreBadge({
   const dim = size === 'lg' ? 56 : size === 'md' ? 44 : 34;
   const fs = size === 'lg' ? 20 : size === 'md' ? 16 : 13;
   const s = score ?? null;
-  const bg =
-    s === null ? t.border : s >= 8 ? t.tier.loved : s >= 6 ? t.tier.liked : s >= 4 ? t.tier.fine : t.tier.disliked;
+  const bg = scoreColor(t, s);
   return (
     <View
       style={[
@@ -304,7 +343,9 @@ export function ScoreBadge({
         },
         style,
       ]}>
-      <RNText style={{ color: '#fff', fontWeight: '700', fontSize: fs }}>{formatScore(s)}</RNText>
+      <RNText style={{ color: s === null ? t.muted : t.onTier, fontWeight: '800', fontSize: fs, letterSpacing: -0.3 }}>
+        {formatScore(s)}
+      </RNText>
     </View>
   );
 }
@@ -314,10 +355,10 @@ export function TierPill({ tier, style }: { tier: Tier; style?: StyleProp<ViewSt
   return (
     <View
       style={[
-        { backgroundColor: t.tier[tier], paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.pill },
+        { backgroundColor: t.tier[tier], paddingHorizontal: 10, paddingVertical: 3, borderRadius: radius.pill },
         style,
       ]}>
-      <RNText style={[font.caption, { color: '#fff' }]}>
+      <RNText style={[font.caption, { color: t.onTier }]}>
         {TIER_META[tier].emoji} {TIER_META[tier].short}
       </RNText>
     </View>
@@ -341,7 +382,7 @@ export function BottleImage({
           width: size,
           height: size,
           borderRadius: radius.md,
-          backgroundColor: t.accentSoft,
+          backgroundColor: t.surface,
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
@@ -349,9 +390,9 @@ export function BottleImage({
         style,
       ]}>
       {uri ? (
-        <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" transition={150} />
+        <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" transition={200} />
       ) : (
-        <Ionicons name="wine-outline" size={size * 0.5} color={t.accent} />
+        <Ionicons name="wine-outline" size={size * 0.46} color={t.muted} />
       )}
     </View>
   );
@@ -377,7 +418,7 @@ export function Avatar({
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: t.accentSoft,
+          backgroundColor: t.surface,
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
@@ -385,11 +426,58 @@ export function Avatar({
         style,
       ]}>
       {uri ? (
-        <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" />
+        <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" transition={200} />
       ) : (
-        <RNText style={{ color: t.accent, fontWeight: '700', fontSize: size * 0.42 }}>{initials}</RNText>
+        <RNText style={{ color: t.muted, fontWeight: '700', fontSize: size * 0.4 }}>{initials}</RNText>
       )}
     </View>
+  );
+}
+
+// -------------------------------------------------------------- experts -----
+/**
+ * Marks a taste expert. `compact` is the seal alone, for sitting beside a
+ * name; the full form spells out their title.
+ */
+export function ExpertBadge({
+  title,
+  compact,
+  style,
+}: {
+  title?: string | null;
+  compact?: boolean;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const t = useTheme();
+  const label = title ? `Taste expert, ${title}` : 'Taste expert';
+  if (compact) {
+    return (
+      <View accessible accessibilityLabel={label} style={style}>
+        <Ionicons name="ribbon" size={15} color={t.expert} />
+      </View>
+    );
+  }
+  return (
+    <Row
+      gap={6}
+      accessible
+      accessibilityLabel={label}
+      style={[
+        {
+          alignSelf: 'flex-start',
+          backgroundColor: t.accentSoft,
+          paddingHorizontal: 10,
+          paddingVertical: 5,
+          borderRadius: radius.pill,
+          maxWidth: '100%',
+        },
+        style,
+      ]}>
+      <Ionicons name="ribbon" size={14} color={t.expert} />
+      <RNText numberOfLines={1} style={[font.caption, { color: t.expert, flexShrink: 1 }]}>
+        {title ?? 'Taste expert'}
+      </RNText>
+    </Row>
   );
 }
 
@@ -416,18 +504,30 @@ export function EmptyState({
 }) {
   const t = useTheme();
   return (
-    <View style={{ alignItems: 'center', padding: spacing.xxl, gap: spacing.sm }}>
-      <Ionicons name={icon} size={40} color={t.muted} />
+    <Appear
+      style={{ alignItems: 'center', paddingVertical: spacing.xxxl, paddingHorizontal: spacing.xl, gap: spacing.sm }}>
+      <View
+        style={{
+          width: 72,
+          height: 72,
+          borderRadius: 36,
+          backgroundColor: t.surface,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: spacing.sm,
+        }}>
+        <Ionicons name={icon} size={32} color={t.muted} />
+      </View>
       <Text variant="h3" style={{ textAlign: 'center' }}>
         {title}
       </Text>
       {body ? (
-        <Text muted style={{ textAlign: 'center' }}>
+        <Text muted style={{ textAlign: 'center', maxWidth: 320 }}>
           {body}
         </Text>
       ) : null}
-      {action ? <View style={{ marginTop: spacing.md }}>{action}</View> : null}
-    </View>
+      {action ? <View style={{ marginTop: spacing.md, alignSelf: 'stretch' }}>{action}</View> : null}
+    </Appear>
   );
 }
 

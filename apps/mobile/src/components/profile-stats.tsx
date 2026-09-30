@@ -50,7 +50,7 @@ export function ProfileStats({ list }: { list: RankedWhiskey[] }) {
       <Row gap={spacing.sm} style={{ flexWrap: 'wrap' }}>
         {TIER_ORDER.map((tier) => (
           <View key={tier} style={[styles.pill, { backgroundColor: t.tier[tier] }]}>
-            <Text variant="caption" color="#fff">
+            <Text variant="caption" color={t.onTier}>
               {TIER_META[tier].short} {perTier[tier]}
             </Text>
           </View>

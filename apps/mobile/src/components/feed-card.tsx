@@ -1,9 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withSpring } from 'react-native-reanimated';
 
-import { Avatar, BottleImage, Card, Row, ScoreBadge, Text, TierPill } from '@/components/ui';
+import { PRESS_SPRING, PressableScale, Skeleton } from '@/components/motion';
+import { Avatar, BottleImage, Card, ExpertBadge, Row, ScoreBadge, Text, TierPill } from '@/components/ui';
 import { useToggleLike } from '@/hooks';
 import { categoryLabel, type FeedItem, type WhiskeyCategory } from '@/lib/api';
 import type { Tier } from '@/lib/ranking';
@@ -11,7 +13,13 @@ import { timeAgo } from '@/lib/time';
 import { radius, spacing, useTheme } from '@/theme';
 
 // The rpc returns jsonb blobs; these are the shapes public.feed() builds.
-export type FeedActor = { id: string; username: string; display_name: string; avatar_url: string | null };
+export type FeedActor = {
+  id: string;
+  username: string;
+  display_name: string;
+  avatar_url: string | null;
+  expert_title?: string | null;
+};
 export type FeedWhiskey = {
   id: string;
   name: string;
@@ -66,6 +74,24 @@ function prettySlug(slug: string) {
   return slug.replace(/[-_]/g, ' ');
 }
 
+/** A heart that pops when it turns on. */
+function LikeHeart({ liked }: { liked: boolean }) {
+  const t = useTheme();
+  const scale = useSharedValue(1);
+  const wasLiked = useRef(liked);
+  useEffect(() => {
+    if (liked && !wasLiked.current)
+      scale.set(withSequence(withSpring(1.35, PRESS_SPRING), withSpring(1, PRESS_SPRING)));
+    wasLiked.current = liked;
+  }, [liked, scale]);
+  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
+  return (
+    <Animated.View style={animated}>
+      <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={liked ? t.danger : t.muted} />
+    </Animated.View>
+  );
+}
+
 export function FeedCard({ item }: { item: FeedItem }) {
   const t = useTheme();
   const router = useRouter();
@@ -92,95 +118,79 @@ export function FeedCard({ item }: { item: FeedItem }) {
     if (target) router.push({ pathname: '/user/[id]', params: { id: target.id } });
   };
 
-  const Name = (
-    <Text onPress={goActor} style={styles.strong}>
-      {actorName}
-    </Text>
-  );
-  const WhiskeyLink = whiskey ? (
-    <Text onPress={goWhiskey} color={t.accent} style={styles.strong}>
-      {whiskey.name}
-    </Text>
-  ) : (
-    <Text>a whiskey</Text>
-  );
-  const EventLink = event?.id ? (
-    <Text onPress={goEvent} color={t.accent} style={styles.strong}>
-      {event.name ?? 'an event'}
-    </Text>
-  ) : (
-    <Text style={styles.strong}>{event?.name ?? 'an event'}</Text>
-  );
-
-  let headline: React.ReactNode = null;
+  // What they did, in a few words. The whiskey itself is named once, in the
+  // panel below, rather than repeated in this sentence.
+  let action: React.ReactNode;
   switch (item.kind) {
     case 'rated':
-      headline = (
-        <Text>
-          {Name} {payload?.is_new === false ? 're-ranked ' : 'rated '}
-          {WhiskeyLink}
-        </Text>
-      );
+      action = payload?.is_new === false ? 're-ranked' : 'rated';
       break;
     case 'tasting_added':
-      headline = (
-        <Text>
-          {Name} added notes on {WhiskeyLink}
-        </Text>
-      );
+      action = 'added a tasting note';
       break;
     case 'whiskey_added':
-      headline = (
-        <Text>
-          {Name} added {WhiskeyLink} to the catalog
-        </Text>
-      );
+      action = 'added to the catalog';
       break;
     case 'event_created':
     case 'event_joined':
-      headline = (
-        <Text>
-          {Name} {item.kind === 'event_created' ? 'created ' : 'joined '}
-          {EventLink}
-        </Text>
+      action = (
+        <>
+          {item.kind === 'event_created' ? 'created ' : 'joined '}
+          <Text variant="small" onPress={event?.id ? goEvent : undefined} color={t.text} style={styles.strong}>
+            {event?.name ?? 'an event'}
+          </Text>
+        </>
       );
       break;
     case 'followed':
-      headline = (
-        <Text>
-          {Name} followed{' '}
-          <Text onPress={goTarget} color={t.accent} style={styles.strong}>
+      action = (
+        <>
+          {'followed '}
+          <Text variant="small" onPress={goTarget} color={t.text} style={styles.strong}>
             {target?.display_name || target?.username || 'someone'}
           </Text>
-        </Text>
+        </>
       );
       break;
     default:
-      headline = <Text>{Name} did something</Text>;
+      action = 'was here';
   }
 
   const liked = item.liked_by_me ?? false;
+  const isExpert = !!actor?.expert_title;
 
   return (
-    <Card style={{ marginBottom: spacing.md }}>
-      <Row style={{ alignItems: 'flex-start' }}>
+    <Card style={{ marginBottom: spacing.md, gap: spacing.md }}>
+      <Row style={{ alignItems: 'center' }} gap={spacing.md}>
         <Pressable onPress={goActor} accessibilityRole="button" accessibilityLabel={actorName}>
-          <Avatar uri={actor?.avatar_url} name={actorName} size={36} />
+          <Avatar uri={actor?.avatar_url} name={actorName} size={40} />
         </Pressable>
-        <View style={{ flex: 1 }}>{headline}</View>
-        <Text variant="caption" muted>
-          {item.created_at ? timeAgo(item.created_at) : ''}
-        </Text>
+        <View style={{ flex: 1, gap: 1 }}>
+          <Row gap={5}>
+            <Text onPress={goActor} numberOfLines={1} style={[styles.strong, { flexShrink: 1 }]}>
+              {actorName}
+            </Text>
+            {isExpert ? <ExpertBadge compact title={actor?.expert_title} /> : null}
+            <Text variant="small" muted>
+              · {item.created_at ? timeAgo(item.created_at) : ''}
+            </Text>
+          </Row>
+          <Text variant="small" muted numberOfLines={1}>
+            {isExpert ? `${actor?.expert_title} · ` : ''}
+            {action}
+          </Text>
+        </View>
       </Row>
 
-      {whiskey && item.kind !== 'whiskey_added' ? (
-        <Pressable
+      {whiskey ? (
+        <PressableScale
           onPress={goWhiskey}
           accessibilityRole="button"
           accessibilityLabel={whiskey.name}
-          style={({ pressed }) => [styles.whiskey, { opacity: pressed ? 0.75 : 1 }]}>
-          <BottleImage uri={whiskey.image_url} size={52} />
-          <View style={{ flex: 1, gap: 2 }}>
+          scaleTo={0.98}
+          style={[styles.whiskey, { backgroundColor: t.surface }]}>
+          <BottleImage uri={whiskey.image_url} size={48} style={{ backgroundColor: t.card }} />
+          <View style={{ flex: 1, gap: 3 }}>
             <Text variant="h3" numberOfLines={1}>
               {whiskey.name}
             </Text>
@@ -188,7 +198,7 @@ export function FeedCard({ item }: { item: FeedItem }) {
               {subtitleOf(whiskey)}
             </Text>
             {item.kind === 'rated' && payload?.tier ? (
-              <Row gap={6}>
+              <Row gap={6} style={{ marginTop: 2 }}>
                 <TierPill tier={payload.tier} />
                 {payload.overall_rank != null && payload.total != null ? (
                   <Text variant="caption" muted>
@@ -199,64 +209,81 @@ export function FeedCard({ item }: { item: FeedItem }) {
             ) : null}
           </View>
           {item.kind === 'rated' ? <ScoreBadge score={payload?.score ?? null} /> : null}
-        </Pressable>
+        </PressableScale>
       ) : null}
 
       {item.kind === 'tasting_added' && tasting ? (
-        <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
-          {tasting.note ? <Text numberOfLines={6}>{tasting.note}</Text> : null}
+        <View style={{ gap: spacing.md }}>
+          {tasting.note ? <Text numberOfLines={5}>{tasting.note}</Text> : null}
           {tasting.nose ? <Detail label="Nose" value={tasting.nose} /> : null}
           {tasting.palate ? <Detail label="Palate" value={tasting.palate} /> : null}
           {tasting.finish ? <Detail label="Finish" value={tasting.finish} /> : null}
           {tasting.flavors?.length ? (
             <Row style={{ flexWrap: 'wrap' }} gap={6}>
-              {tasting.flavors.map((f) => (
-                <View key={f} style={[styles.flavor, { backgroundColor: t.accentSoft }]}>
-                  <Text variant="caption">{prettySlug(f)}</Text>
+              {tasting.flavors.slice(0, 6).map((f) => (
+                <View key={f} style={[styles.flavor, { backgroundColor: t.surface }]}>
+                  <Text variant="caption" muted>
+                    {prettySlug(f)}
+                  </Text>
                 </View>
               ))}
             </Row>
           ) : null}
-          <Row gap={spacing.md} style={{ flexWrap: 'wrap' }}>
-            {tasting.score_total != null ? (
-              <Text variant="small" style={styles.strong}>
-                {tasting.score_total}
-                <Text variant="small" muted>
-                  /100
-                </Text>
-              </Text>
-            ) : null}
-            {tasting.serving ? (
-              <Text variant="small" muted>
-                {prettySlug(tasting.serving)}
-              </Text>
-            ) : null}
-          </Row>
-          <Row gap={spacing.lg} style={{ marginTop: spacing.xs }}>
-            <Pressable
+          <Row gap={spacing.lg}>
+            <PressableScale
               accessibilityRole="button"
               accessibilityLabel={liked ? 'Unlike' : 'Like'}
+              accessibilityState={{ selected: liked }}
               disabled={like.isPending}
               onPress={() => like.mutate({ tastingId: tasting.id, liked })}
               hitSlop={8}
-              style={({ pressed }) => [
-                { flexDirection: 'row', alignItems: 'center', gap: 6, opacity: pressed ? 0.6 : 1 },
-              ]}>
-              <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={liked ? t.danger : t.muted} />
+              scaleTo={0.85}
+              style={styles.action}>
+              <LikeHeart liked={liked} />
               <Text variant="small" muted>
                 {tasting.likes_count ?? 0}
               </Text>
-            </Pressable>
+            </PressableScale>
             <Row gap={6}>
               <Ionicons name="chatbubble-outline" size={18} color={t.muted} />
               <Text variant="small" muted>
                 {tasting.comments_count ?? 0}
               </Text>
             </Row>
+            <View style={{ flex: 1 }} />
+            <Text variant="small" muted>
+              {[
+                tasting.serving ? prettySlug(tasting.serving) : null,
+                tasting.score_total != null ? `${tasting.score_total}/100` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </Text>
           </Row>
         </View>
       ) : null}
     </Card>
+  );
+}
+
+/** Stand-in cards while the feed loads, shaped like the real thing. */
+export function FeedSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <View>
+      {Array.from({ length: count }, (_, i) => (
+        <Card key={i} style={{ marginBottom: spacing.md, gap: spacing.md }}>
+          <Row gap={spacing.md}>
+            <Skeleton width={40} height={40} rounded={20} />
+            <View style={{ flex: 1, gap: 6 }}>
+              <Skeleton width="45%" height={14} />
+              <Skeleton width="30%" height={12} />
+            </View>
+          </Row>
+          <Skeleton height={72} rounded={radius.md} />
+          <Skeleton width="85%" height={14} />
+        </Card>
+      ))}
+    </View>
   );
 }
 
@@ -273,6 +300,13 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 const styles = StyleSheet.create({
   strong: { fontWeight: '700' },
-  whiskey: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
-  flavor: { paddingHorizontal: spacing.sm, paddingVertical: 3, borderRadius: radius.pill },
+  whiskey: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+  },
+  flavor: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill },
+  action: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 });
