@@ -2,14 +2,15 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Linking, Platform, Share, View } from 'react-native';
 
-import { Button, Card, Chip, Input, Row, Screen, Spacer, Text } from '@/components/ui';
+import { Button, Card, Chip, ExpertBadge, Input, Row, Screen, Spacer, Text } from '@/components/ui';
 import { deleteMyAccount, exportMyData, registerPushToken } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import type { Enums } from '@/lib/database.types';
-import { useUpdateProfile } from '@/hooks';
+import { useExpertQueue, useMyExpertApplication, useUpdateProfile } from '@/hooks';
 import { spacing, useTheme } from '@/theme';
 
 type Visibility = Enums<'profile_visibility'>;
@@ -51,8 +52,12 @@ function SectionTitle({ children }: { children: string }) {
 
 export default function Settings() {
   const t = useTheme();
+  const router = useRouter();
   const { profile, signOut } = useAuth();
   const updateProfile = useUpdateProfile();
+  const application = useMyExpertApplication();
+  const queue = useExpertQueue(!!profile?.is_moderator);
+  const waiting = queue.data?.length ?? 0;
 
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
   const [username, setUsername] = useState(profile?.username ?? '');
@@ -228,6 +233,51 @@ export default function Settings() {
           {VISIBILITY.find((v) => v.value === visibility)?.hint}
         </Text>
       </Card>
+
+      <SectionTitle>Taste experts</SectionTitle>
+      <Card style={{ gap: spacing.sm }}>
+        {profile?.expert_since ? (
+          <>
+            <ExpertBadge title={profile.expert_title} />
+            <Text variant="small" muted>
+              {"You're a verified taste expert. Your rankings count toward Expert picks."}
+            </Text>
+          </>
+        ) : (
+          <>
+            <Text variant="small" muted>
+              {application.data?.status === 'pending'
+                ? 'Your application is with a moderator.'
+                : 'Work in whiskey? Distillers, writers, educators and bar professionals can apply for a verified badge.'}
+            </Text>
+            <Button
+              title={application.data?.status === 'pending' ? 'View application' : 'Apply to be a taste expert'}
+              variant="secondary"
+              icon="ribbon-outline"
+              onPress={() => router.push('/expert-apply')}
+            />
+          </>
+        )}
+        <Button title="Browse taste experts" variant="ghost" onPress={() => router.push('/experts')} />
+      </Card>
+
+      {profile?.is_moderator ? (
+        <>
+          <SectionTitle>Moderation</SectionTitle>
+          <Card style={{ gap: spacing.sm }}>
+            <Text variant="small" muted>
+              {waiting
+                ? `${waiting} expert application${waiting === 1 ? '' : 's'} waiting.`
+                : 'No applications waiting.'}
+            </Text>
+            <Button
+              title="Review expert applications"
+              variant={waiting ? 'primary' : 'secondary'}
+              onPress={() => router.push('/expert-review')}
+            />
+          </Card>
+        </>
+      ) : null}
 
       <SectionTitle>Notifications</SectionTitle>
       <Card style={{ gap: spacing.sm }}>

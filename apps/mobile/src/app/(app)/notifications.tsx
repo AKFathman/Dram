@@ -9,7 +9,14 @@ import { acceptFollow, type Notification } from '@/lib/api';
 import { timeAgo } from '@/lib/time';
 import { radius, spacing, useTheme } from '@/theme';
 
-type NotificationPayload = { preview: string | null; merged_name: string | null };
+type NotificationPayload = {
+  preview: string | null;
+  merged_name: string | null;
+  /** Expert approval: the badge title. */
+  title: string | null;
+  /** Expert decline: the moderator's note. */
+  note: string | null;
+};
 
 function describe(n: Notification): string {
   const payload = n.payload as NotificationPayload | null;
@@ -34,6 +41,12 @@ function describe(n: Notification): string {
       return payload?.merged_name
         ? `“${payload.merged_name}” was merged into another entry`
         : 'the whiskey you added was merged into another entry';
+    case 'expert_approved':
+      return `Your taste-expert badge is live${payload?.title ? `: ${payload.title}` : ''}. People can now find you and follow your picks.`;
+    case 'expert_declined':
+      return payload?.note
+        ? `Your expert application wasn't approved: “${payload.note}”`
+        : "Your expert application wasn't approved this time. You're welcome to apply again.";
     default:
       return 'did something';
   }
@@ -64,7 +77,9 @@ export default function NotificationsScreen() {
   });
 
   const open = (n: Notification) => {
-    if (n.event_id) router.push({ pathname: '/event/[id]', params: { id: n.event_id } });
+    if (n.kind === 'expert_approved') router.push({ pathname: '/user/[id]', params: { id: n.user_id } });
+    else if (n.kind === 'expert_declined') router.push('/expert-apply');
+    else if (n.event_id) router.push({ pathname: '/event/[id]', params: { id: n.event_id } });
     else if (n.whiskey_id) router.push({ pathname: '/whiskey/[id]', params: { id: n.whiskey_id } });
     else if (n.actor_id) router.push({ pathname: '/user/[id]', params: { id: n.actor_id } });
   };
@@ -88,7 +103,8 @@ export default function NotificationsScreen() {
           />
         }
         renderItem={({ item }) => {
-          const actorName = item.actor?.display_name || item.actor?.username || 'Someone';
+          // No actor means Dram itself sent it (expert decisions, catalog changes).
+          const actorName = item.actor?.display_name || item.actor?.username || (item.actor_id ? 'Someone' : 'Dram');
           const unread = !item.read_at || new Date(item.read_at).getTime() >= openedAt;
           return (
             <Pressable

@@ -3,13 +3,21 @@
  * search lives in lib/ranking — this just asks and reports the tap.
  */
 import * as Haptics from 'expo-haptics';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import Animated, {
+  FadeInRight,
+  FadeOutLeft,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
+import { PressableScale } from '@/components/motion';
 import { BottleImage, Button, Row, ScoreBadge, Text } from '@/components/ui';
 import { whiskeySubtitle, type Whiskey } from '@/lib/api';
 import type { Answer } from '@/lib/ranking';
-import { radius, spacing, useTheme } from '@/theme';
+import { elevation, radius, spacing, useTheme } from '@/theme';
 
 export function RateComparison({
   subject,
@@ -50,7 +58,10 @@ export function RateComparison({
           OR
         </Text>
       </Row>
-      <ChoiceCard whiskey={candidate} score={candidateScore} onPress={() => tap('existing')} />
+      {/* Keyed on the whiskey so each new opponent slides in and the last one slides away. */}
+      <Animated.View key={candidate.id} entering={FadeInRight.duration(260)} exiting={FadeOutLeft.duration(180)}>
+        <ChoiceCard whiskey={candidate} score={candidateScore} onPress={() => tap('existing')} />
+      </Animated.View>
 
       <Button title="Too close to call" variant="ghost" onPress={() => tap('same')} />
       <Pressable onPress={onBack} accessibilityRole="button" hitSlop={8}>
@@ -75,18 +86,12 @@ function ChoiceCard({
 }) {
   const t = useTheme();
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`Prefer ${whiskey.name}`}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: t.card,
-          borderColor: pressed ? t.accent : t.border,
-          transform: [{ scale: pressed ? 0.985 : 1 }],
-        },
-      ]}>
+      scaleTo={0.97}
+      style={[styles.card, { backgroundColor: t.card }, elevation(t)]}>
       <BottleImage uri={whiskey.image_url} size={64} />
       <View style={{ flex: 1, gap: 2 }}>
         {badge ? (
@@ -102,23 +107,29 @@ function ChoiceCard({
         </Text>
       </View>
       {score != null ? <ScoreBadge score={score} /> : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 
+/** Grows smoothly to each new answer instead of jumping. */
 function ProgressBar({ value, total }: { value: number; total: number }) {
   const t = useTheme();
   const pct = total <= 0 ? 1 : Math.min(1, value / total);
+  const width = useSharedValue(pct);
+  useEffect(() => {
+    width.set(withTiming(pct, { duration: 320 }));
+  }, [pct, width]);
+  const bar = useAnimatedStyle(() => ({ width: `${width.get() * 100}%` }));
   return (
     <View
       style={{
         height: 4,
         borderRadius: radius.pill,
-        backgroundColor: t.border,
+        backgroundColor: t.surface,
         overflow: 'hidden',
         marginTop: spacing.xs,
       }}>
-      <View style={{ width: `${pct * 100}%`, height: '100%', backgroundColor: t.accent }} />
+      <Animated.View style={[{ height: '100%', backgroundColor: t.accent, borderRadius: radius.pill }, bar]} />
     </View>
   );
 }
@@ -128,7 +139,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.lg,
-    borderWidth: 1,
     borderRadius: radius.lg,
     padding: spacing.lg,
     minHeight: 96,
