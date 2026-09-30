@@ -12,7 +12,8 @@ import { createClient } from '@supabase/supabase-js';
 
 type Kind =
   | 'new_follower' | 'follow_request' | 'follow_accepted' | 'like' | 'comment'
-  | 'event_starting' | 'event_lineup_updated' | 'whiskey_approved' | 'whiskey_merged';
+  | 'event_starting' | 'event_lineup_updated' | 'whiskey_approved' | 'whiskey_merged'
+  | 'expert_approved' | 'expert_declined';
 
 interface NotificationRow {
   id: number;
@@ -47,6 +48,8 @@ async function describe(n: NotificationRow): Promise<{ title: string; body: stri
     case 'event_lineup_updated': return { title: event?.name ?? 'Your event', body: 'The lineup was updated', url: `dram://event/${n.event_id}` };
     case 'whiskey_approved': return { title: 'Whiskey approved', body: `${whiskey?.name ?? 'Your submission'} is now in the catalog`, url: `dram://whiskey/${n.whiskey_id}` };
     case 'whiskey_merged':   return { title: 'Whiskey merged', body: `${String(n.payload?.merged_name ?? 'Your submission')} was merged into ${whiskey?.name ?? 'an existing entry'}`, url: `dram://whiskey/${n.whiskey_id}` };
+    case 'expert_approved':  return { title: "You're a taste expert", body: `Your ${String(n.payload?.title ?? 'expert')} badge is live. People can now find you and follow your picks.`, url: `dram://user/${n.user_id}` };
+    case 'expert_declined':  return { title: 'Your expert application', body: String(n.payload?.note ?? "It wasn't approved this time. You're welcome to apply again."), url: 'dram://notifications' };
     default:                 return { title: 'Dram', body: 'You have a new notification', url: 'dram://notifications' };
   }
 }
