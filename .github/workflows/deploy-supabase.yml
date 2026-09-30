@@ -153,6 +153,8 @@ jobs:
         continue-on-error: true
         env:
           TMP: ${{ runner.temp }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
           api="https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF/config/auth"
           auth_header="Authorization: Bearer $SUPABASE_ACCESS_TOKEN"
@@ -220,9 +222,13 @@ jobs:
             external_email_enabled: true,
             mailer_autoconfirm: false
           }' > "$TMP/otp.json"
-          jq -n '{
-            site_url: "dram://auth/callback",
-            uri_allow_list: "dram://auth/callback,exp://**"
+          # Where a sign-in link may come back to. Pages lower-cases the owner
+          # in the host but keeps the repository's own spelling in the path.
+          pages="https://$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]').github.io/$REPO_NAME"
+          echo "web app: $pages"
+          jq -n --arg pages "$pages" '{
+            site_url: $pages,
+            uri_allow_list: ("\($pages)/**,dram://auth/callback,exp://**")
           }' > "$TMP/redirect.json"
 
           patch_group confirmation

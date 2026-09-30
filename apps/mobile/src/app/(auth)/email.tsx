@@ -23,7 +23,7 @@ export default function EmailSignIn() {
       await signInWithEmail(e);
       setSent(true);
     } catch (err) {
-      Alert.alert('Could not send code', err instanceof Error ? err.message : String(err));
+      Alert.alert('Could not send the email', err instanceof Error ? err.message : String(err));
     } finally {
       setBusy(false);
     }
@@ -47,7 +47,7 @@ export default function EmailSignIn() {
       {!sent ? (
         <View style={{ gap: spacing.md }}>
           <Text variant="h2">{"What's your email?"}</Text>
-          <Text muted>{"We'll send a 6-digit code. No password to remember."}</Text>
+          <Text muted>{"We'll email you a link to sign in. No password to remember."}</Text>
           <Input
             placeholder="you@example.com"
             autoCapitalize="none"
@@ -58,12 +58,15 @@ export default function EmailSignIn() {
             onChangeText={setEmail}
             onSubmitEditing={send}
           />
-          <Button title="Send code" loading={busy} onPress={send} />
+          <Button title="Email me a link" loading={busy} onPress={send} />
         </View>
       ) : (
         <View style={{ gap: spacing.md }}>
           <Text variant="h2">Check your inbox</Text>
-          <Text muted>Enter the code we sent to {email.trim()}. You can also tap the link in the email.</Text>
+          <Text muted>
+            Tap the link in the email we sent to {email.trim()}. If it carries a 6-digit code, you can type that here
+            instead.
+          </Text>
           <Input
             placeholder="123456"
             keyboardType="number-pad"

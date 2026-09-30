@@ -96,10 +96,15 @@ export default function Settings() {
     );
 
   // --------------------------------------------------------------- push ----
+  // Expo push tokens are issued to a real device build. On the web the
+  // permission call has nothing to answer for, so don't ask.
+  const pushSupported = Platform.OS !== 'web';
+
   const pushStatus = useQuery({
     queryKey: ['push-permission'],
     queryFn: () => Notifications.getPermissionsAsync(),
     staleTime: 0,
+    enabled: pushSupported,
   });
 
   const enablePush = useMutation({
@@ -122,13 +127,15 @@ export default function Settings() {
     onError: (e) => Alert.alert('Could not enable push', e instanceof Error ? e.message : String(e)),
   });
 
-  const pushLabel = enablePush.isSuccess
-    ? 'This device is registered for push.'
-    : pushStatus.data?.granted
-      ? 'Allowed on this device.'
-      : pushStatus.data?.canAskAgain === false
-        ? 'Blocked — turn notifications on in your device settings.'
-        : 'Not enabled yet.';
+  const pushLabel = !pushSupported
+    ? 'Push needs the iOS or Android app — a browser has no device to register.'
+    : enablePush.isSuccess
+      ? 'This device is registered for push.'
+      : pushStatus.data?.granted
+        ? 'Allowed on this device.'
+        : pushStatus.data?.canAskAgain === false
+          ? 'Blocked — turn notifications on in your device settings.'
+          : 'Not enabled yet.';
 
   // --------------------------------------------------------------- data ----
   const exportData = useMutation({
@@ -232,6 +239,7 @@ export default function Settings() {
           variant="secondary"
           icon="notifications-outline"
           loading={enablePush.isPending}
+          disabled={!pushSupported}
           onPress={() => enablePush.mutate()}
         />
       </Card>

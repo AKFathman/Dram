@@ -75,3 +75,32 @@ jobs:
       - name: Check send-push
         working-directory: supabase/functions/send-push
         run: deno check index.ts
+
+  web:
+    name: Web — static export builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install
+        run: if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: Export
+        env:
+          # The bundle only needs these to be present and well-formed; nothing
+          # is called at build time, so the real project's values aren't needed.
+          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          DRAM_WEB_BASE_URL: /Dram
+          EXPO_NO_TELEMETRY: '1'
+        run: npx expo export --platform web --output-dir dist
+      - name: The export is servable from a sub-path
+        run: |
+          test -f dist/index.html || { echo "::error::no index.html"; exit 1; }
+          grep -q '/Dram/_expo/' dist/index.html \
+            || { echo "::error::index.html ignores the base path — a sub-path deploy would 404"; exit 1; }
