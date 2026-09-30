@@ -68,6 +68,40 @@ jobs:
             [ -n "${!v}" ] || { echo "::error::Missing repository secret $v"; exit 1; }
           done
 
+      # A free-tier project pauses itself after about a week without activity.
+      # Deploying against one that is paused, or still waking, fails later with
+      # a misleading "IPv6 is not supported" error from `db push`: the pooler
+      # isn't up yet, so the CLI falls back to a direct IPv6 connection that
+      # hosted runners can't make. Wake it if needed and wait until it's healthy.
+      - name: Wait for the project to be up
+        run: |
+          api="https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_REF"
+          status() {
+            curl -sS --fail-with-body "$api" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" | jq -r '.status'
+          }
+          s=$(status)
+          echo "project status: $s"
+          case "$s" in
+            INACTIVE|PAUSED)
+              echo "::notice::Project was paused — restoring it. This usually takes a few minutes."
+              curl -sS --fail-with-body -X POST "$api/restore" \
+                -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" > /dev/null
+              ;;
+          esac
+          # 10 minutes: a restore normally finishes well inside this.
+          waited=0
+          while [ "$s" != "ACTIVE_HEALTHY" ]; do
+            if [ "$waited" -ge 600 ]; then
+              echo "::error::Project is still $s after 10 minutes. Check it in the Supabase dashboard, then re-run."
+              exit 1
+            fi
+            echo "  $s — waiting (${waited}s)"
+            sleep 10
+            waited=$((waited + 10))
+            s=$(status)
+          done
+          echo "project is up"
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
