@@ -309,8 +309,10 @@ export async function updateProfile(patch: TablesUpdate<'profiles'>): Promise<Pr
   return unwrap(await supabase.from('profiles').update(patch).eq('id', id).select('*').single());
 }
 
+// Mirrors legal_drinking_age() in the database so the onboarding screen can
+// show the right number before submitting. The server check is the real one.
 export function legalDrinkingAge(country: string | null | undefined) {
-  return country === 'US' ? 21 : 18;
+  return country?.toUpperCase() === 'US' ? 21 : 18;
 }
 
 export function ageOn(birthdate: Date, on = new Date()) {
@@ -320,23 +322,33 @@ export function ageOn(birthdate: Date, on = new Date()) {
   return age;
 }
 
+// Formats a local calendar date as YYYY-MM-DD without a timezone shift.
+function isoDate(d: Date) {
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
+// The database does the age check and is the only thing that can mark a
+// profile verified; the client-side check above only gives earlier feedback.
 export async function completeOnboarding(input: {
   username: string;
   display_name: string;
   birthdate: Date;
   home_country: string;
-}) {
+}): Promise<Profile> {
   const min = legalDrinkingAge(input.home_country);
   if (ageOn(input.birthdate) < min) {
     throw new Error(`You must be ${min} or older to use Dram.`);
   }
-  return updateProfile({
-    username: input.username.toLowerCase(),
-    display_name: input.display_name,
-    home_country: input.home_country,
-    age_verified_at: new Date().toISOString(),
-    onboarded_at: new Date().toISOString(),
-  });
+  return unwrap(
+    await supabase.rpc('complete_onboarding', {
+      p_username: input.username.toLowerCase(),
+      p_display_name: input.display_name,
+      p_birthdate: isoDate(input.birthdate),
+      p_home_country: input.home_country,
+    }),
+  );
 }
 
 // ----------------------------------------------------------------- social ---
@@ -790,7 +802,17 @@ export async function identifyLabel(
   const { data, error } = await supabase.functions.invoke<IdentifyResult>('identify-label', {
     body: { image_base64: imageBase64, media_type: mediaType },
   });
-  if (error) throw new Error(error.message);
+  if (error) {
+    // supabase-js hides the body of a non-2xx reply behind error.context; the
+    // function puts a plain-language reason there (daily allowance used up,
+    // unreadable photo), which is what the person should see.
+    const ctx = (error as { context?: unknown }).context;
+    if (ctx instanceof Response) {
+      const body = (await ctx.json().catch(() => null)) as { error?: string } | null;
+      if (body?.error) throw new Error(body.error);
+    }
+    throw new Error(error.message);
+  }
   if (!data) throw new Error('No response from identify-label');
   return data;
 }

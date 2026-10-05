@@ -111,6 +111,7 @@ The feed is a `security definer` function (`feed()`) because it needs to read fo
 | `notifications` / `push_tokens` | In-app + push | `read_at`; tokens keyed by device token |
 | `reports` | Moderation queue | target_type + reason enums via checks |
 | `price_observations` (V2) | Crowd/retailer prices | `v_latest_prices` view |
+| `label_scans` | One row per label-scan attempt, for the per-user allowance | no client policies; written only by `record_label_scan` |
 
 ## 4. RPC / view reference
 
@@ -131,6 +132,8 @@ The feed is a `security definer` function (`feed()`) because it needs to read fo
 | `event_leaderboard(event)` | fn | definer (member check) | crowd scores per pour |
 | `merge_whiskeys(source, target)` | fn | definer (moderator) | de-duplicate catalog |
 | `export_my_data()` / `delete_my_account()` | fn | invoker / definer | GDPR self-serve |
+| `complete_onboarding(username, display_name, birthdate, country)` | fn | definer | the only way to set `age_verified_at` / `onboarded_at`; checks the birth date against `legal_drinking_age(country)` (US 21, else 18) and does not store it |
+| `record_label_scan(limit)` | fn | definer | spends one scan from the caller's rolling 24-hour allowance (default 20); called by the `identify-label` edge function before the model |
 | `can_view_profile`, `is_event_member`, `is_event_host`, `can_view_event`, `can_view_tasting`, `is_moderator` | fn | definer | policy helpers |
 
 ## 5. Storage buckets

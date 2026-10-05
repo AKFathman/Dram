@@ -569,6 +569,32 @@ export type Database = {
           },
         ]
       }
+      label_scans: {
+        Row: {
+          id: number
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_scans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           id: number
@@ -1425,6 +1451,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      complete_onboarding: {
+        Args: {
+          p_username: string
+          p_display_name: string
+          p_birthdate: string
+          p_home_country: string
+        }
+        Returns: Database["public"]["Tables"]["profiles"]["Row"]
+      }
       delete_my_account: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -1544,6 +1579,12 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["events"]["Row"][]
       }
+      legal_drinking_age: {
+        Args: {
+          p_country: string
+        }
+        Returns: number
+      }
       list_experts: {
         Args: {
           p_specialties?: Database["public"]["Enums"]["whiskey_category"][]
@@ -1601,6 +1642,12 @@ export type Database = {
           p_tier: Database["public"]["Enums"]["rating_tier"]
         }
         Returns: undefined
+      }
+      record_label_scan: {
+        Args: {
+          p_limit?: number
+        }
+        Returns: Json
       }
       refresh_whiskey_stats: {
         Args: {
