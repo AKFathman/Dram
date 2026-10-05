@@ -8,8 +8,14 @@
  * 2. We build a search string from what it found and run the same
  *    `search_whiskeys` RPC the app uses, under the caller's JWT/RLS.
  *
- * Secrets: ANTHROPIC_API_KEY (supabase secrets set). SUPABASE_URL and
- * SUPABASE_ANON_KEY are injected by the platform.
+ * Each call spends the owner's model credit, so every signed-in user gets a
+ * rolling 24-hour allowance (record_label_scan in the database); once it is
+ * used up the reply is 429 with a message the app shows as is.
+ *
+ * Secrets: ANTHROPIC_API_KEY (supabase secrets set). Optional:
+ * LABEL_SCANS_PER_DAY (default 20; set it under Edge Functions → Secrets or
+ * with `supabase secrets set`). SUPABASE_URL and SUPABASE_ANON_KEY are
+ * injected by the platform.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
@@ -36,6 +42,25 @@ const LabelSchema = z.object({
 type Label = z.infer<typeof LabelSchema>;
 
 const MAX_BYTES = 6 * 1024 * 1024;
+const DEFAULT_SCANS_PER_DAY = 20;
+
+function scansPerDay(): number {
+  const n = Number(Deno.env.get('LABEL_SCANS_PER_DAY') ?? '');
+  return Number.isInteger(n) && n >= 0 ? n : DEFAULT_SCANS_PER_DAY;
+}
+
+type ScanAllowance = { allowed: boolean; used: number; limit: number; resets_at: string | null };
+
+// "in 3 hours", "in 40 minutes": enough for a one-line message.
+function untilText(iso: string | null): string {
+  if (!iso) return 'tomorrow';
+  const ms = new Date(iso).getTime() - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return 'in a moment';
+  const minutes = Math.ceil(ms / 60_000);
+  if (minutes < 60) return `in ${minutes} minute${minutes === 1 ? '' : 's'}`;
+  const hours = Math.ceil(minutes / 60);
+  return `in ${hours} hour${hours === 1 ? '' : 's'}`;
+}
 const MEDIA = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const json = (body: unknown, status = 200) =>
@@ -123,6 +148,25 @@ Deno.serve(async (req) => {
   });
   const { data: userData, error: userError } = await supabase.auth.getUser();
   if (userError || !userData.user) return json({ error: 'Not signed in' }, 401);
+
+  // Spend one scan from the caller's allowance before paying for the model.
+  // If the check itself fails we refuse rather than scan for free.
+  const limit = scansPerDay();
+  const { data: allowance, error: allowanceError } = await supabase.rpc('record_label_scan', { p_limit: limit });
+  if (allowanceError || !allowance) {
+    console.error('identify-label: allowance error', allowanceError);
+    return json({ error: 'Could not check your scan allowance. Try again in a moment.' }, 503);
+  }
+  const quota = allowance as ScanAllowance;
+  if (!quota.allowed) {
+    return json(
+      {
+        error: `You've used all ${quota.limit} label scans for today. Try again ${untilText(quota.resets_at)}, or search by name.`,
+        allowance: quota,
+      },
+      429,
+    );
+  }
 
   let extracted: Label;
   try {
