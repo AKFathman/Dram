@@ -10,8 +10,8 @@ export default function AppLayout() {
     <Stack
       screenOptions={{
         headerShown: true,
-        headerTintColor: t.accent,
-        headerTitleStyle: { color: t.text },
+        headerTintColor: t.text,
+        headerTitleStyle: { color: t.text, fontWeight: '700' },
         headerStyle: { backgroundColor: t.bg },
         headerShadowVisible: false,
         contentStyle: { backgroundColor: t.bg },
@@ -24,6 +24,10 @@ export default function AppLayout() {
       <Stack.Screen name="my-list" options={{ title: 'My ranking' }} />
       <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
       <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+      <Stack.Screen name="experts" options={{ title: 'Taste experts' }} />
+      <Stack.Screen name="expert-picks" options={{ title: 'Expert picks' }} />
+      <Stack.Screen name="expert-review" options={{ title: 'Expert applications' }} />
+      <Stack.Screen name="expert-apply" options={{ ...modal, title: 'Become a taste expert' }} />
       <Stack.Screen name="log" options={{ ...modal, title: 'Log a whiskey' }} />
       <Stack.Screen name="rate/[whiskeyId]" options={{ ...modal, title: 'Rate', gestureEnabled: false }} />
       <Stack.Screen name="add-whiskey" options={{ ...modal, title: 'Add a whiskey' }} />

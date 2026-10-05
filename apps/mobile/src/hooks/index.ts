@@ -206,6 +206,7 @@ export function useFollowState(targetId: string | undefined) {
       qc.invalidateQueries({ queryKey: keys.userRankings(targetId ?? '') });
       qc.invalidateQueries({ queryKey: keys.feed() });
       qc.invalidateQueries({ queryKey: keys.me });
+      qc.invalidateQueries({ queryKey: ['experts'] });
     },
   });
   return {
@@ -214,6 +215,24 @@ export function useFollowState(targetId: string | undefined) {
     isPending: query.data?.status === 'pending',
     toggle,
   };
+}
+
+/** Follow or unfollow anyone by id, for lists where each row has its own button. */
+export function useToggleFollow() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, following }: { userId: string; following: boolean }) => {
+      if (following) await api.unfollow(userId);
+      else await api.follow(userId);
+    },
+    onSettled: (_data, _err, v) => {
+      qc.invalidateQueries({ queryKey: ['experts'] });
+      qc.invalidateQueries({ queryKey: keys.follows(v.userId) });
+      qc.invalidateQueries({ queryKey: keys.profile(v.userId) });
+      qc.invalidateQueries({ queryKey: ['feed'] });
+      qc.invalidateQueries({ queryKey: keys.me });
+    },
+  });
 }
 
 export function useTasteMatch(otherId: string | undefined) {
@@ -261,6 +280,82 @@ export function useTop(f: Parameters<typeof api.topWhiskeys>[0]) {
 }
 export function useFriendsLoved() {
   return useQuery({ queryKey: keys.discover('friends-loved'), queryFn: () => api.friendsLoved(), staleTime: 60_000 });
+}
+
+// ---------------------------------------------------------------- experts ---
+export function useExperts(opts: { specialties?: api.WhiskeyCategory[]; query?: string } = {}) {
+  const query = opts.query?.trim() ?? '';
+  return useQuery({
+    queryKey: keys.experts({ specialties: opts.specialties ?? [], query }),
+    queryFn: () => api.listExperts({ specialties: opts.specialties, query }),
+    placeholderData: (prev) => prev,
+    staleTime: 60_000,
+  });
+}
+
+export function useExpertPicks(categories?: api.WhiskeyCategory[]) {
+  return useQuery({
+    queryKey: keys.expertPicks(categories ?? []),
+    queryFn: () => api.expertPicks(categories),
+    placeholderData: (prev) => prev,
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** What verified experts are rating and noting, followed or not. */
+export function useExpertFeed() {
+  return useInfiniteQuery({
+    queryKey: keys.expertFeed,
+    queryFn: ({ pageParam }) => api.getFeed({ beforeId: pageParam, experts: true }),
+    initialPageParam: null as number | null,
+    getNextPageParam: (last) => (last.length ? last[last.length - 1]!.id : undefined),
+  });
+}
+
+export function useWhiskeyExpertTakes(whiskeyId: string | undefined) {
+  return useQuery({
+    queryKey: keys.expertTakes(whiskeyId ?? ''),
+    queryFn: () => api.whiskeyExpertTakes(whiskeyId!),
+    enabled: !!whiskeyId,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useMyExpertApplication() {
+  return useQuery({ queryKey: keys.myExpertApplication, queryFn: api.myExpertApplication });
+}
+
+export function useExpertApplication() {
+  const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: keys.myExpertApplication });
+  return {
+    apply: useMutation({ mutationFn: api.applyForExpert, onSuccess: refresh }),
+    withdraw: useMutation({ mutationFn: api.withdrawExpertApplication, onSuccess: refresh }),
+  };
+}
+
+/** Moderators only; the query is off for everyone else. */
+export function useExpertQueue(enabled: boolean) {
+  return useQuery({ queryKey: keys.expertQueue, queryFn: api.listExpertQueue, enabled });
+}
+
+export function useModerateExperts() {
+  const qc = useQueryClient();
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['expert-application'] });
+    qc.invalidateQueries({ queryKey: ['experts'] });
+    qc.invalidateQueries({ queryKey: ['expert-picks'] });
+    qc.invalidateQueries({ queryKey: ['profile'] });
+  };
+  return {
+    review: useMutation({ mutationFn: api.reviewExpertApplication, onSuccess: refresh }),
+    setExpert: useMutation({
+      mutationFn: (v: { userId: string; title: string; specialties: api.WhiskeyCategory[] }) =>
+        api.setExpert(v.userId, v.title, v.specialties),
+      onSuccess: refresh,
+    }),
+    revoke: useMutation({ mutationFn: api.revokeExpert, onSuccess: refresh }),
+  };
 }
 
 // ----------------------------------------------------------------- events ---

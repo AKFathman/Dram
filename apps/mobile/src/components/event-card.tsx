@@ -16,7 +16,7 @@ const STATUS_LABEL: Record<Status, string> = { draft: 'Draft', live: 'Live', end
 export function EventStatusChip({ status }: { status: Status }) {
   const t = useTheme();
   const color = status === 'live' ? t.success : status === 'draft' ? t.muted : t.border;
-  const fg = status === 'ended' ? t.muted : '#fff';
+  const fg = status === 'ended' ? t.muted : t.onTier;
   return (
     <View style={[styles.chip, { backgroundColor: status === 'ended' ? t.border : color }]}>
       <Text variant="caption" color={fg}>

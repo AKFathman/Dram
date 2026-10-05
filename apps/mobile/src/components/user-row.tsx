@@ -2,12 +2,12 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Avatar, Text } from '@/components/ui';
+import { Avatar, ExpertBadge, Row, Text } from '@/components/ui';
 import type { Profile } from '@/lib/api';
 import { spacing, useTheme } from '@/theme';
 
 type RowProfile = Pick<Profile, 'id' | 'username' | 'display_name' | 'avatar_url'> &
-  Partial<Pick<Profile, 'bio' | 'rankings_count'>>;
+  Partial<Pick<Profile, 'bio' | 'rankings_count' | 'expert_title' | 'expert_since'>>;
 
 /** One person in a list: avatar, name, @username, optional trailing slot. */
 export function UserRow({
@@ -37,9 +37,12 @@ export function UserRow({
       style={({ pressed }) => [styles.row, { borderBottomColor: t.border, opacity: pressed ? 0.7 : 1 }]}>
       <Avatar uri={profile.avatar_url} name={profile.display_name || profile.username} size={44} />
       <View style={{ flex: 1, gap: 2 }}>
-        <Text variant="h3" numberOfLines={1}>
-          {profile.display_name || profile.username}
-        </Text>
+        <Row gap={5}>
+          <Text variant="h3" numberOfLines={1} style={{ flexShrink: 1 }}>
+            {profile.display_name || profile.username}
+          </Text>
+          {profile.expert_since ? <ExpertBadge compact title={profile.expert_title} /> : null}
+        </Row>
         <Text variant="small" muted numberOfLines={1}>
           {sub}
         </Text>

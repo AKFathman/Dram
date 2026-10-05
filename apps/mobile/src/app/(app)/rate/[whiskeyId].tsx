@@ -9,10 +9,12 @@ import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
+import Animated, { useReducedMotion, ZoomIn } from 'react-native-reanimated';
 
 import { RateComparison } from '@/components/rate-comparison';
 import { RateTierPicker } from '@/components/rate-tier-picker';
-import { BottleImage, Button, Card, ErrorState, Loading, Row, ScoreBadge, Screen, Spacer, Text } from '@/components/ui';
+import { Appear, useCountUp } from '@/components/motion';
+import { BottleImage, Button, Card, ErrorState, Loading, Row, Screen, Spacer, Text, scoreColor } from '@/components/ui';
 import {
   useCreateTasting,
   useMyEventTastings,
@@ -58,12 +60,23 @@ export default function RateScreen() {
   );
 
   const [tier, setTier] = useState<Tier | null>(null);
+  // Tapped but not yet committed: the picker shows it landing before the
+  // comparisons take over, so the choice visibly registers.
+  const [picked, setPicked] = useState<Tier | null>(null);
+  const pickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reduceMotion = useReducedMotion();
+  useEffect(
+    () => () => {
+      if (pickTimer.current) clearTimeout(pickTimer.current);
+    },
+    [],
+  );
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [result, setResult] = useState<RankingView | null>(null);
   const savingRef = useRef(false);
 
   const candidates = useTierCandidates(tier, whiskeyId, preferIdsArray);
-  const shownTier = tier ?? existing?.tier ?? null;
+  const shownTier = picked ?? tier ?? existing?.tier ?? null;
 
   // Replay the answers over this tier's candidates to get the current question.
   const session = useMemo(() => {
@@ -117,13 +130,24 @@ export default function RateScreen() {
 
   const backToTier = () => {
     setAnswers([]);
+    setPicked(null);
     setTier(null);
   };
 
   const pickTier = (next: Tier) => {
     Haptics.selectionAsync().catch(() => {});
     setAnswers([]);
-    setTier(next);
+    if (pickTimer.current) clearTimeout(pickTimer.current);
+    if (reduceMotion) {
+      setTier(next);
+      return;
+    }
+    // A second tap during the pause just changes the choice.
+    setPicked(next);
+    pickTimer.current = setTimeout(() => {
+      setTier(next);
+      setPicked(null);
+    }, 280);
   };
 
   const confirmRemove = () =>
@@ -180,8 +204,8 @@ export default function RateScreen() {
 
       {step === 'result' && result ? (
         <View style={{ gap: spacing.lg, alignItems: 'center' }}>
-          <ScoreBadge score={result.score} size="lg" />
-          <View style={{ gap: spacing.xs, alignItems: 'center' }}>
+          <ScoreReveal score={result.score ?? 0} />
+          <Appear index={2} style={{ gap: spacing.xs, alignItems: 'center' }}>
             <Text variant="h2">{"Nice — it's on your list"}</Text>
             <Text muted>
               #{result.overall_rank} of {result.total} overall
@@ -196,8 +220,8 @@ export default function RateScreen() {
                 #{regionRank} in {whiskey.region}
               </Text>
             ) : null}
-          </View>
-          <View style={{ alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.md }}>
+          </Appear>
+          <Appear index={4} style={{ alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.md }}>
             <Button
               title="Add tasting notes"
               icon="create-outline"
@@ -213,7 +237,7 @@ export default function RateScreen() {
               variant="secondary"
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
             />
-          </View>
+          </Appear>
         </View>
       ) : step === 'saving' ? (
         <View>
@@ -223,15 +247,17 @@ export default function RateScreen() {
           </Text>
         </View>
       ) : step === 'compare' && session && currentCandidate ? (
-        <RateComparison
-          subject={whiskey}
-          candidate={currentCandidate.whiskey}
-          candidateScore={currentCandidate.score}
-          asked={session.asked}
-          total={maxQuestions(session.candidates.length)}
-          onAnswer={onAnswer}
-          onBack={backToTier}
-        />
+        <Appear>
+          <RateComparison
+            subject={whiskey}
+            candidate={currentCandidate.whiskey}
+            candidateScore={currentCandidate.score}
+            asked={session.asked}
+            total={maxQuestions(session.candidates.length)}
+            onAnswer={onAnswer}
+            onBack={backToTier}
+          />
+        </Appear>
       ) : (
         <View style={{ gap: spacing.lg }}>
           <View style={{ gap: spacing.xs }}>
@@ -258,5 +284,27 @@ export default function RateScreen() {
       )}
       <Spacer h={spacing.xl} />
     </Screen>
+  );
+}
+
+/** The payoff: the new score springs in and counts up to where it landed. */
+function ScoreReveal({ score }: { score: number }) {
+  const t = useTheme();
+  const shown = useCountUp(score, 900);
+  return (
+    <Animated.View
+      entering={ZoomIn.springify().damping(11).stiffness(140)}
+      accessible
+      accessibilityLabel={`Score ${formatScore(score)}`}
+      style={{
+        width: 112,
+        height: 112,
+        borderRadius: 56,
+        backgroundColor: scoreColor(t, score),
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+      <Text style={{ color: t.onTier, fontSize: 40, fontWeight: '800', letterSpacing: -1 }}>{formatScore(shown)}</Text>
+    </Animated.View>
   );
 }

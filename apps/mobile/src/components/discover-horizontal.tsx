@@ -1,11 +1,13 @@
 import { useRouter } from 'expo-router';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 
-import { BottleImage, Loading, ScoreBadge, Text } from '@/components/ui';
+import { PressableScale, Skeleton } from '@/components/motion';
+import { BottleImage, Row, ScoreBadge, Text } from '@/components/ui';
 import { whiskeySubtitle, type Whiskey } from '@/lib/api';
 import { radius, spacing, useTheme } from '@/theme';
 
-const CARD_W = 132;
+/** Shared with expert picks so every rail on Discover reads the same. */
+export const CARD_W = 148;
 
 export function DiscoverCard({
   whiskey,
@@ -20,25 +22,23 @@ export function DiscoverCard({
   const router = useRouter();
   const go = onPress ?? (() => router.push({ pathname: '/whiskey/[id]', params: { id: whiskey.id } }));
   return (
-    <Pressable
+    <PressableScale
       onPress={go}
       accessibilityRole="button"
       accessibilityLabel={whiskey.name}
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: t.card, borderColor: t.border, opacity: pressed ? 0.75 : 1 },
-      ]}>
+      scaleTo={0.97}
+      style={styles.card}>
       <View>
-        <BottleImage uri={whiskey.image_url} size={CARD_W - spacing.lg * 2} />
-        <ScoreBadge score={whiskey.avg_score} size="sm" style={styles.badge} />
+        <BottleImage uri={whiskey.image_url} size={CARD_W} style={{ borderRadius: radius.lg }} />
+        <ScoreBadge score={whiskey.avg_score} size="sm" style={[styles.badge, { borderColor: t.bg }]} />
       </View>
-      <Text variant="small" numberOfLines={2} style={{ fontWeight: '600' }}>
+      <Text variant="small" numberOfLines={2} style={{ fontWeight: '700' }}>
         {whiskey.name}
       </Text>
       <Text variant="caption" muted numberOfLines={1}>
         {subtitle ?? whiskeySubtitle(whiskey)}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -54,7 +54,15 @@ export function DiscoverHorizontal({
   subtitleFor?: (w: Whiskey) => string;
   empty?: string;
 }) {
-  if (loading && !data) return <Loading style={{ padding: spacing.lg }} />;
+  if (loading && !data) {
+    return (
+      <Row gap={spacing.md} style={{ overflow: 'hidden', paddingVertical: spacing.xs }}>
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} width={CARD_W} height={CARD_W + 44} rounded={20} />
+        ))}
+      </Row>
+    );
+  }
   if (!data?.length) {
     return empty ? (
       <Text variant="small" muted style={{ paddingVertical: spacing.sm }}>
@@ -75,12 +83,6 @@ export function DiscoverHorizontal({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    width: CARD_W,
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  badge: { position: 'absolute', right: -6, bottom: -6 },
+  card: { width: CARD_W, gap: spacing.xs },
+  badge: { position: 'absolute', right: 8, bottom: 8, borderWidth: 2 },
 });

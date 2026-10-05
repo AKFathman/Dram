@@ -450,6 +450,63 @@ export type Database = {
           },
         ]
       }
+      expert_applications: {
+        Row: {
+          id: string
+          user_id: string
+          requested_title: string
+          specialties: Database["public"]["Enums"]["whiskey_category"][]
+          credentials: string
+          links: string[]
+          status: Database["public"]["Enums"]["expert_application_status"]
+          reviewer_note: string | null
+          reviewed_by: string | null
+          reviewed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          requested_title: string
+          specialties: Database["public"]["Enums"]["whiskey_category"][]
+          credentials: string
+          links?: string[]
+          status?: Database["public"]["Enums"]["expert_application_status"]
+          reviewer_note?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          requested_title?: string
+          specialties?: Database["public"]["Enums"]["whiskey_category"][]
+          credentials?: string
+          links?: string[]
+          status?: Database["public"]["Enums"]["expert_application_status"]
+          reviewer_note?: string | null
+          reviewed_by?: string | null
+          reviewed_at?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expert_applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expert_applications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       flavor_tags: {
         Row: {
           slug: string
@@ -674,6 +731,10 @@ export type Database = {
           following_count: number
           created_at: string
           updated_at: string
+          expert_title: string | null
+          expert_specialties: Database["public"]["Enums"]["whiskey_category"][]
+          expert_since: string | null
+          expert_verified_by: string | null
         }
         Insert: {
           id: string
@@ -692,6 +753,10 @@ export type Database = {
           following_count?: number
           created_at?: string
           updated_at?: string
+          expert_title?: string | null
+          expert_specialties?: Database["public"]["Enums"]["whiskey_category"][]
+          expert_since?: string | null
+          expert_verified_by?: string | null
         }
         Update: {
           id?: string
@@ -710,8 +775,19 @@ export type Database = {
           following_count?: number
           created_at?: string
           updated_at?: string
+          expert_title?: string | null
+          expert_specialties?: Database["public"]["Enums"]["whiskey_category"][]
+          expert_since?: string | null
+          expert_verified_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "profiles_expert_verified_by_fkey"
+            columns: ["expert_verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "profiles_id_fkey"
             columns: ["id"]
@@ -1322,6 +1398,15 @@ export type Database = {
       }
     }
     Functions: {
+      apply_for_expert: {
+        Args: {
+          p_title: string
+          p_specialties: Database["public"]["Enums"]["whiskey_category"][]
+          p_credentials: string
+          p_links?: string[]
+        }
+        Returns: Database["public"]["Tables"]["expert_applications"]["Row"]
+      }
       can_view_event: {
         Args: {
           p_event_id: string
@@ -1367,6 +1452,32 @@ export type Database = {
           my_tried: boolean | null
         }[]
       }
+      expert_picks: {
+        Args: {
+          p_categories?: Database["public"]["Enums"]["whiskey_category"][]
+          p_limit?: number
+        }
+        Returns: {
+          whiskey_id: string | null
+          name: string | null
+          brand: string | null
+          category: Database["public"]["Enums"]["whiskey_category"] | null
+          region: string | null
+          country: string | null
+          age_years: number | null
+          abv: number | null
+          image_url: string | null
+          expert_count: number | null
+          expert_avg_score: number | null
+          experts: Json | null
+        }[]
+      }
+      expert_specialty_set: {
+        Args: {
+          p: Database["public"]["Enums"]["whiskey_category"][]
+        }
+        Returns: Database["public"]["Enums"]["whiskey_category"][]
+      }
       export_my_data: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -1376,6 +1487,7 @@ export type Database = {
           p_limit?: number
           p_before_id?: number
           p_actor?: string
+          p_experts_only?: boolean
         }
         Returns: {
           id: number | null
@@ -1432,6 +1544,27 @@ export type Database = {
         }
         Returns: Database["public"]["Tables"]["events"]["Row"][]
       }
+      list_experts: {
+        Args: {
+          p_specialties?: Database["public"]["Enums"]["whiskey_category"][]
+          p_query?: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: {
+          id: string | null
+          username: string | null
+          display_name: string | null
+          avatar_url: string | null
+          bio: string | null
+          expert_title: string | null
+          expert_specialties: Database["public"]["Enums"]["whiskey_category"][] | null
+          expert_since: string | null
+          followers_count: number | null
+          rankings_count: number | null
+          follow_status: Database["public"]["Enums"]["follow_status"] | null
+        }[]
+      }
       match_whiskey_lines: {
         Args: {
           p_lines: string[]
@@ -1481,6 +1614,21 @@ export type Database = {
         }
         Returns: undefined
       }
+      review_expert_application: {
+        Args: {
+          p_application: string
+          p_approve: boolean
+          p_title?: string
+          p_note?: string
+        }
+        Returns: Database["public"]["Tables"]["expert_applications"]["Row"]
+      }
+      revoke_expert: {
+        Args: {
+          p_user: string
+        }
+        Returns: undefined
+      }
       search_whiskeys: {
         Args: {
           q: string
@@ -1491,6 +1639,14 @@ export type Database = {
           p_offset?: number
         }
         Returns: Database["public"]["Tables"]["whiskeys"]["Row"][]
+      }
+      set_expert: {
+        Args: {
+          p_user: string
+          p_title: string
+          p_specialties: Database["public"]["Enums"]["whiskey_category"][]
+        }
+        Returns: Database["public"]["Tables"]["profiles"]["Row"]
       }
       similar_whiskeys: {
         Args: {
@@ -1545,6 +1701,24 @@ export type Database = {
         }
         Returns: Database["public"]["Views"]["v_rankings"]["Row"][]
       }
+      whiskey_expert_takes: {
+        Args: {
+          p_whiskey_id: string
+        }
+        Returns: {
+          user_id: string | null
+          username: string | null
+          display_name: string | null
+          avatar_url: string | null
+          expert_title: string | null
+          tier: Database["public"]["Enums"]["rating_tier"] | null
+          score: number | null
+          overall_rank: number | null
+          total: number | null
+          note: string | null
+          tasted_at: string | null
+        }[]
+      }
       whiskey_flavor_profile: {
         Args: {
           p_whiskey_id: string
@@ -1572,6 +1746,10 @@ export type Database = {
           total: number | null
         }[]
       }
+      withdraw_expert_application: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       activity_kind: "rated" | "tasting_added" | "whiskey_added" | "event_joined" | "event_created" | "followed"
@@ -1580,8 +1758,9 @@ export type Database = {
       event_role: "organizer" | "host" | "attendee"
       event_status: "draft" | "live" | "ended"
       event_visibility: "public" | "code"
+      expert_application_status: "pending" | "approved" | "declined" | "withdrawn"
       follow_status: "pending" | "accepted"
-      notification_kind: "new_follower" | "follow_request" | "follow_accepted" | "like" | "comment" | "event_starting" | "event_lineup_updated" | "whiskey_approved" | "whiskey_merged"
+      notification_kind: "new_follower" | "follow_request" | "follow_accepted" | "like" | "comment" | "event_starting" | "event_lineup_updated" | "whiskey_approved" | "whiskey_merged" | "expert_approved" | "expert_declined"
       profile_visibility: "public" | "followers"
       rating_tier: "disliked" | "fine" | "liked" | "loved"
       serving_style: "neat" | "rocks" | "water" | "highball" | "cocktail" | "other"

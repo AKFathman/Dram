@@ -21,6 +21,8 @@ for f in seed/*.sql; do
   echo "== ${f}"
   $PSQL -d "$DB" -f "$f"
 done
-echo "== tests/smoke.sql"
-$PSQL -d "$DB" -f tests/smoke.sql
-echo "OK: schema, seed and smoke tests passed on ${DB}"
+for f in tests/*.sql; do
+  echo "== ${f}"
+  $PSQL -d "$DB" -f "$f"
+done
+echo "OK: schema, seed and tests passed on ${DB}"

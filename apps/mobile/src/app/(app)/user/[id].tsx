@@ -5,6 +5,7 @@ import { Alert, FlatList, View } from 'react-native';
 import { Segmented } from '@/components/discover-segmented';
 import { FeedCard } from '@/components/feed-card';
 import { EmptyState, ErrorState, IconButton, Loading, Screen, Spacer, Text } from '@/components/ui';
+import { ModeratorExpertControls } from '@/components/moderator-expert-controls';
 import { UserProfileHeader } from '@/components/user-profile-header';
 import { WhiskeyRow } from '@/components/whiskey-row';
 import { useFeed, useFollowState, useProfile, useRankings, useTasteMatch } from '@/hooks';
@@ -81,6 +82,8 @@ export default function UserProfileScreen() {
         onToggleFollow={() => follow.toggle.mutate()}
         match={match.data}
       />
+      {/* Keyed so the editor resets when the badge changes underneath it. */}
+      <ModeratorExpertControls key={`${profile.id}:${profile.expert_since ?? ''}`} profile={profile} />
       <Spacer h={spacing.lg} />
       <Segmented
         value={segment}
